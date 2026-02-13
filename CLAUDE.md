@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-Graph-based political-era analysis of Alberta ministry restructuring, grant flows, director governance networks, and political donations. Builds a unified Neo4j knowledge graph aligned to KGL v1.3 ontology to answer questions that **only a graph can answer** — specifically tracing funding through ministry lineage chains across political eras (NDP 2015-2019, UCP 2019-present).
+Graph-based political-era analysis of Alberta ministry restructuring, grant flows, and director governance networks. Builds a unified Neo4j knowledge graph aligned to KGL v1.3 ontology to answer questions that **only a graph can answer** — specifically tracing funding through ministry lineage chains across political eras (NDP 2015-2019, UCP 2019-present) and detecting disproportionate funding concentration in governance clusters.
 
 ## The Smoking Gun Question
 
-"Which organizations saw the largest funding increases through NDP-created or NDP-restructured ministries (2015-2019), shared board directors with each other in governance clusters, and did those same directors appear as NDP donors — and what happened to that funding after UCP restructured the same ministries?"
+"Which governance clusters (organizations sharing board directors) received disproportionate funding increases through NDP-restructured ministries compared to non-clustered organizations — and did that concentration pattern reverse under UCP?"
 
-This requires 5-hop graph traversal: Director → Organization → Grant → Ministry → TransformEvent → PoliticalEra — impossible with flat tables.
+This requires multi-hop graph traversal: ministry lineage traversal + director network cluster detection + temporal funding comparison across political eras — impossible with flat tables.
 
 ## Key References
 
@@ -20,31 +20,46 @@ This requires 5-hop graph traversal: Director → Organization → Grant → Min
 
 ## Architecture
 
-- **Graph database:** Neo4j 5.x (Docker: `neo4j:5-community`, bolt://localhost:7687)
-- **Data warehouse:** Databricks (`<YOUR_DATABRICKS_HOST>`)
+- **Graph database:** Neo4j Aura (`<YOUR_NEO4J_AURA_URI>`, user: `neo4j`, password: `<YOUR_NEO4J_AURA_PASSWORD>`) — 264 nodes / 317 relationships already loaded (ministry lineage from Archana's notebook)
+- **Data warehouse:** Databricks (`<YOUR_DATABRICKS_HOST>`) — **source of truth for all data** (D009)
+- **Databricks Token:** `<YOUR_DATABRICKS_TOKEN>`
 - **Databricks SQL Warehouse:** `<YOUR_DATABRICKS_SQL_WAREHOUSE>`
 - **Unity Catalog:** `dbw_unitycatalog_test`
 
-## Data Sources
+## Data Sources (all from Databricks — D009)
 
-| Source | Location | Records | Key Fields |
-|--------|----------|---------|------------|
-| GOA Grants (all years) | `C:\Users\alina\OneDrive\Desktop\goa_grants_all.csv` | 1,806,202 | Ministry, Recipient, Program, Amount, FiscalYear |
-| GOA Grants (per-year) | `C:\Users\alina\OneDrive\Desktop\goa_grants\goa_grants_YYYY-YY.csv` | ~130-180K each | Same |
-| Ministry Lineage | `ministry-genealogy-graph/04-graph-build/databricks/` | 114 entities, 54 events | canonical_id, event_type, event_date |
-| Entity Mapping | `ministry-genealogy-graph/04-graph-build/databricks/entity_mapping.csv` | 318 rows | grants_ministry_name → canonical_id → current_name |
-| CRA Directors 2023 | `Janak Demo/Excploratory Analysis/data/cra/directors_2023.csv` | 571,461 | BN, Last Name, First Name, Position |
-| Super Directors | `Janak Demo/Excploratory Analysis/data/super_directors.csv` | 50 | name, n_boards (up to 357) |
-| Master Watchlist | `Janak Demo/.../master_watchlist.csv` | 321 | BN, Organization, 11 risk flag columns |
-| Director Clusters | `Janak Demo/Excploratory Analysis/data/clusters.csv` | 380+ | cluster_id, size, org_names |
-| CRA T3010 (Databricks) | `postgresql_catalog.cra_data.cra_2023` | ~83K nationally | BN, revenue, expenses, directors |
-| CRA 2024 (Databricks) | `dbw_unitycatalog_test/uploads/uploaded_files/CRA - Oct 2025 update/` | ~71K | Updated financials |
-| Federal G&C | `open.canada.ca` | ~70K AB | BN, amount, department |
-| Elections Alberta | `efpublic.elections.ab.ca` | TBD | contributor, party, amount, year |
+### Databricks Tables (`dbw_unitycatalog_test.default`)
+
+| Source | Table | Records | Key Fields |
+|--------|-------|---------|------------|
+| AB Org Risk Flags | `ab_org_risk_flags` | 9,145 | All AB charities with risk flags |
+| AB Master Profile | `ab_master_profile` | 9,446 | Master joining CRA+GOA+Federal |
+| AB Name History | `ab_name_history` | ~82K | Name tracking 2015-2023 |
+| GOA Grants Disclosure | `goa_grants_disclosure` | 1,806,214 | All GOA grants 2014-2025 |
+| GOA Multi-Ministry | `goa_multi_ministry` | 4,597 | Recipients from 2+ ministries |
+| GOA-CRA Matched | `goa_cra_matched` | 1,304 | GOA recipients matched to CRA |
+| CRA Directors 2023 | `cra_directors_2023` | — | BN, Last Name, First Name, Position |
+| CRA Directors 2024 | `cra_directors_2024` | — | Updated directors |
+| CRA Directors Clean | `cra_directors_clean` | 570,798 | Normalized director records |
+| Multi-Board Directors | `multi_board_directors` | 19,156 | Directors on 3+ boards |
+| Multi-Board Enriched | `multi_board_enriched` | — | Enriched multi-board data |
+| Org Clusters (Strong) | `org_clusters_strong` | 4,636 | Cluster assignments |
+| Cluster Financials | `org_cluster_strong_financials` | 1,540 | Cluster financial summaries |
+| Org Network Edges | `org_network_edges_filtered` | 154,015 | Org-to-org edges |
+
+### Databricks Volume Files
+
+| Source | Volume Path | Description |
+|--------|-------------|-------------|
+| CRA Full (2010-2024) | `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/CRA - Oct 2025 update/CRA - Cleaned/` | CRA-2010-Full.csv through CRA-2024-Full.csv |
+| Ministry Lineage | `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/Ministry Data/` | org_entities.csv, transform_events.csv, edges_*.csv |
+| GoC Grants | `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/GoC Grants/` | Federal G&C data |
+| GoA Grants for Graph | `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/GoA Grants for Graph/` | GOA grants formatted for graph |
+| Governor Party vs Funding | `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/Governor Party vs Funding/` | Political era funding analysis |
 
 ## Neo4j Graph Schema (KGL-Aligned)
 
-### Node Types (14 KGL canonical nodes)
+### Node Types (12 KGL canonical nodes)
 | Glyph | Handle | Neo4j Label | Source |
 |-------|--------|-------------|--------|
 | `▣` | program | `:Ministry` | ministry-genealogy-graph |
@@ -57,13 +72,11 @@ This requires 5-hop graph traversal: Director → Organization → Grant → Min
 | `ᚪ` | geography | `:Region` | AB regions |
 | `⟡` | measurement | `:RiskFlag` | 11 flag types |
 | `Ϫ` | risk | property | risk level |
-| `✠` | authority | `:PoliticalParty` | NDP, UCP, etc. |
-| `⌖` | data | `:Donation` | Elections Alberta |
 | `Ϡ` | type | property | classification |
 | `Ͼ` | status | property | lifecycle |
 
-### Relationship Types (12)
-`SOURCE_OF`, `TARGET_OF`, `EVIDENCED_BY`, `PARENT_OF`, `RECEIVED_GRANT`, `SITS_ON`, `FLAGGED_AS`, `LOCATED_IN`, `DONATED_TO`, `CLUSTER_MEMBER`, `FUNDED_BY_FED`, `OPERATES_IN_ERA`
+### Relationship Types (10)
+`SOURCE_OF`, `TARGET_OF`, `EVIDENCED_BY`, `PARENT_OF`, `RECEIVED_GRANT`, `SITS_ON`, `FLAGGED_AS`, `LOCATED_IN`, `CLUSTER_MEMBER`, `FUNDED_BY_FED`
 
 ## Political Eras
 
@@ -89,15 +102,16 @@ This requires 5-hop graph traversal: Director → Organization → Grant → Min
 ## Current State
 
 - **Phase:** 0 (Project Setup — this file)
-- **Next:** Phase 0 data assembly agents (4 parallel)
-- **Neo4j:** Not yet running (Docker available v28.4.0)
-- **Databricks:** SDK installed, tokens available
+- **Next:** Phase 0 data assembly agents (3 parallel)
+- **Neo4j Aura:** 264 nodes, 317 relationships (ministry lineage already loaded by Archana — D011)
+- **Databricks:** SDK installed, tokens available — source of truth for all data (D009)
 
 ## Known Gotchas
 
-- GOA grants have NO BN number — must fuzzy-match on recipient name to CRA
+- GOA grants have NO BN number — must fuzzy-match on recipient name to CRA (use `goa_cra_matched` table for pre-matched records)
 - CRA 2023 data only ~45% complete — prefer 2022 for financial analysis, 2024 for registry
 - Entity mapping has `CULTURE,MULTICULTURALISMANDSTATUSOFWOMEN` corrupted name — use GRANTS_NAME_ALIASES
 - Windows cp1252 encoding breaks KGL glyphs — always use `encoding='utf-8'`
-- Elections Alberta has no bulk CSV — must use web extract tool or scrape
 - MERGE not CREATE in Neo4j — entities appear in multiple datasets
+- Neo4j Aura already has 264 nodes — use MERGE to extend idempotently (D011)
+- All data sourced from Databricks tables/volumes — do NOT read local CSV files (D009)

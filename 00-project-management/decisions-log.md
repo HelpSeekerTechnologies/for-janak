@@ -86,3 +86,33 @@ Each decision follows: **Context → Decision → Rationale → Alternatives Con
 **Decision:** Every folder gets a `{domain}.skill.md` that encodes the methodology, inputs, outputs, and anti-patterns for that phase. These serve as both documentation AND Claude Code skill files that can be loaded in future sessions.
 **Rationale:** After context compression, Claude can `Read` the relevant skill.md to recover full context for that phase. This is the KGL-skill pattern applied to the project itself.
 **Alternatives:** (a) Single monolithic CLAUDE.md — too large after expansion. (b) No skills — lose context on compression.
+
+---
+
+### D009: Databricks as source of truth (not local files)
+
+**Date:** 2026-02-12
+**Context:** The project initially referenced local CSV files on the developer's desktop (e.g., `goa_grants_all.csv`, `directors_2023.csv`). However, all data has been uploaded, cleaned, and deduplicated in the Databricks workspace (`<YOUR_DATABRICKS_HOST>`, Unity Catalog `dbw_unitycatalog_test`). Local files may be stale or inconsistent across team members.
+**Decision:** All data sourcing must come from Databricks — either from Unity Catalog tables (e.g., `goa_grants_disclosure`, `cra_directors_clean`, `multi_board_directors`) or from Volume files (e.g., `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/...`). No local CSV files should be referenced.
+**Rationale:** Databricks has validated/deduplicated tables that are the single source of truth. Local files may be stale, and different team members may have different versions. Using Databricks ensures reproducibility and consistency.
+**Alternatives:** (a) Continue using local files — rejected because of staleness and team inconsistency risk. (b) Hybrid local+Databricks — rejected for simplicity; one source of truth is better than two.
+
+---
+
+### D010: Drop Elections Alberta, reframe without political donations
+
+**Date:** 2026-02-12
+**Context:** The original workplan included Agent 0C (Elections Alberta Donation Collector) to scrape political donation data and link directors to NDP donations. However, no Elections Alberta data is available (no bulk CSV download, scraping unreliable), and the smoking gun question depended on director-to-donation links.
+**Decision:** Remove Agent 0C entirely. Remove all `PoliticalParty` nodes, `Donation` nodes, and `DONATED_TO` relationships from the graph schema. Reframe the smoking gun question from "directors who donated to NDP" to "governance clusters receiving disproportionate funding through NDP-restructured ministries vs non-clustered organizations." Reframe Agent 2B from "Director-to-Donation Graph Walker" to "Director-Cluster-Funding-Concentration Analyzer."
+**Rationale:** The funding pattern through ministry lineage + governance clusters is already powerful without donations. The reframed question is STILL graph-only (requires ministry lineage traversal + director network cluster detection + temporal funding comparison) and avoids the weakest data link. Per D006, donations were always the weakest link.
+**Alternatives:** (a) Keep Agent 0C and manually collect donations — rejected because data is unavailable. (b) Use federal Elections Canada data instead — rejected because provincial donations are more relevant and the reframed question is stronger without donations.
+
+---
+
+### D011: Extend existing Neo4j Aura instead of Docker
+
+**Date:** 2026-02-12
+**Context:** The original plan (D007) used a local Docker Neo4j container. However, Archana's ingest notebook has already loaded 264 nodes and 317 relationships (ministry lineage) into a Neo4j Aura instance (`<YOUR_NEO4J_AURA_URI>`).
+**Decision:** Use the existing Neo4j Aura instance instead of spinning up a new Docker container. MERGE operations will be idempotent — the 264 existing nodes will be matched, not duplicated. All new nodes (organizations, directors, grants) will extend the existing graph.
+**Rationale:** Avoids duplicate work (ministry lineage already loaded). Aura is accessible to the whole team (not just the local developer). Cloud-hosted instance is more reliable for demo/presentation purposes.
+**Alternatives:** (a) Fresh Docker container — rejected because it duplicates Archana's work and is local-only. (b) Wipe Aura and reload — rejected because existing data is valid and MERGE handles idempotency.

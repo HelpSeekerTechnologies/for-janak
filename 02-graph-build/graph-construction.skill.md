@@ -1,6 +1,6 @@
 # Graph Construction Skill
 
-Design, deploy, and populate a unified KGL v1.3-aligned Neo4j knowledge graph combining ministry lineage, charity organizations, director networks, grant flows, risk flags, and political donations.
+Design, deploy, and populate a unified KGL v1.3-aligned Neo4j knowledge graph combining ministry lineage, charity organizations, director networks, grant flows, and risk flags. Extends existing Neo4j Aura graph (264 nodes already loaded — D011).
 
 ---
 
@@ -13,26 +13,29 @@ Design, deploy, and populate a unified KGL v1.3-aligned Neo4j knowledge graph co
 
 ---
 
-## Neo4j Instance
+## Neo4j Instance (Aura — D011)
 
-```bash
-docker run -d --name lineage-audit \
-  -p 7474:7474 -p 7687:7687 \
-  -v lineage-audit-data:/data \
-  -e NEO4J_AUTH=neo4j/<YOUR_NEO4J_LOCAL_PASSWORD> \
-  neo4j:5-community
+```python
+# Connection details
+NEO4J_URI = "<YOUR_NEO4J_AURA_URI>"
+NEO4J_USER = "neo4j"
+NEO4J_PASSWORD = "<YOUR_NEO4J_AURA_PASSWORD>"
+
+from neo4j import GraphDatabase
+driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))
 ```
 
-- **Browser:** http://localhost:7474
-- **Bolt:** bolt://localhost:7687
-- **Auth:** neo4j / <YOUR_NEO4J_LOCAL_PASSWORD>
+- **URI:** `<YOUR_NEO4J_AURA_URI>`
+- **Auth:** neo4j / <YOUR_NEO4J_AURA_PASSWORD>
+- **Existing data:** 264 nodes, 317 relationships (ministry lineage from Archana's notebook)
+- **Strategy:** MERGE to extend — existing nodes matched idempotently, new nodes added
 
 ---
 
-## Schema: 14 KGL Node Types
+## Schema: 12 KGL Node Types
 
 ```cypher
-// ━━━ MINISTRY LINEAGE (from ministry-genealogy-graph) ━━━
+// ━━━ MINISTRY LINEAGE (264 nodes already in Aura from Archana's notebook) ━━━
 
 // ▣ program — Government ministry/department (can transform)
 CREATE CONSTRAINT ministry_id IF NOT EXISTS
@@ -46,7 +49,7 @@ FOR (e:TransformEvent) REQUIRE e.event_id IS UNIQUE;
 CREATE CONSTRAINT source_doc_id IF NOT EXISTS
 FOR (d:SourceDocument) REQUIRE d.doc_id IS UNIQUE;
 
-// ━━━ CHARITY ORGANIZATIONS (from CRA T3010) ━━━
+// ━━━ CHARITY ORGANIZATIONS (from CRA T3010 via Databricks) ━━━
 
 // ᚴ organization — Registered charity
 CREATE CONSTRAINT org_bn IF NOT EXISTS
@@ -56,7 +59,7 @@ FOR (o:Organization) REQUIRE o.bn IS UNIQUE;
 CREATE CONSTRAINT director_id IF NOT EXISTS
 FOR (d:Director) REQUIRE d.normalized_name IS UNIQUE;
 
-// ━━━ FUNDING (from GOA grants, federal G&C) ━━━
+// ━━━ FUNDING (from GOA grants, federal G&C via Databricks) ━━━
 
 // ◉ resource — Grant aggregate (org × ministry × fiscal year)
 // No unique constraint — composite key (org_bn, ministry_id, fiscal_year)
@@ -75,10 +78,6 @@ FOR (r:Region) REQUIRE r.name IS UNIQUE;
 CREATE CONSTRAINT flag_id IF NOT EXISTS
 FOR (f:RiskFlag) REQUIRE f.flag_type IS UNIQUE;
 
-// ✠ authority — Political party
-CREATE CONSTRAINT party_id IF NOT EXISTS
-FOR (p:PoliticalParty) REQUIRE p.name IS UNIQUE;
-
 // Indexes for query performance
 CREATE INDEX ministry_name IF NOT EXISTS FOR (m:Ministry) ON (m.name);
 CREATE INDEX org_name IF NOT EXISTS FOR (o:Organization) ON (o.name);
@@ -86,59 +85,51 @@ CREATE INDEX director_name IF NOT EXISTS FOR (d:Director) ON (d.normalized_name)
 CREATE INDEX grant_era IF NOT EXISTS FOR ()-[g:RECEIVED_GRANT]-() ON (g.political_era);
 ```
 
-## 12 Relationship Types
+## 10 Relationship Types
 
 ```cypher
-// Ministry lineage (existing)
+// Ministry lineage (already in Aura — 317 relationships)
 // (:Ministry)-[:SOURCE_OF]->(:TransformEvent)     — predecessor
 // (:TransformEvent)-[:TARGET_OF]->(:Ministry)     — successor
 // (:TransformEvent)-[:EVIDENCED_BY]->(:SourceDocument)
 // (:Ministry)-[:PARENT_OF]->(:Ministry)           — temporal hierarchy
 
-// Grant flows (new)
+// Grant flows (new — to be added)
 // (:Organization)-[:RECEIVED_GRANT {amount, fiscal_year, political_era, n_payments}]->(:Ministry)
 
-// Director governance (new)
+// Director governance (new — to be added)
 // (:Director)-[:SITS_ON {position, start_date, end_date}]->(:Organization)
 
-// Risk classification (new)
+// Risk classification (new — to be added)
 // (:Organization)-[:FLAGGED_AS {severity}]->(:RiskFlag)
 
-// Geography (new)
+// Geography (new — to be added)
 // (:Organization)-[:LOCATED_IN]->(:Region)
 
-// Political donations (new)
-// (:Director)-[:DONATED_TO {amount, year}]->(:PoliticalParty)
-
-// Cluster edges (new)
+// Cluster edges (new — to be added)
 // (:Organization)-[:CLUSTER_MEMBER {cluster_id, shared_directors}]->(:Organization)
 
-// Federal funding (new)
+// Federal funding (new — to be added)
 // (:Organization)-[:FUNDED_BY_FED {amount, department, program}]->(:FiscalYear)
-
-// Era tagging (new)
-// (:Ministry)-[:OPERATES_IN_ERA]->(:FiscalYear)
 ```
 
 ---
 
 ## Ingestion Order (Critical)
 
-**Always MERGE, never CREATE.** Entities appear in multiple datasets.
+**Always MERGE, never CREATE.** Entities appear in multiple datasets. Note: 264 nodes and 317 relationships already exist in Aura (D011) — MERGE will be idempotent.
 
 1. **FiscalYear nodes** (11) — independent
 2. **Region nodes** (~7) — independent
 3. **RiskFlag nodes** (11 types) — independent
-4. **PoliticalParty nodes** (4-5) — independent
-5. **Ministry lineage** — run existing `ingest-all.cypher` from ministry-genealogy-graph (114+54+36 nodes, 263 edges)
-6. **Organization nodes** (9,145) — from CRA T3010
-7. **Director nodes** (~19K multi-board) — from CRA directors
-8. **SITS_ON edges** — director → organization
-9. **RECEIVED_GRANT edges** — organization → ministry (from aggregated grants)
-10. **FLAGGED_AS edges** — organization → risk flag
-11. **CLUSTER_MEMBER edges** — organization → organization
-12. **DONATED_TO edges** — director → political party (if available)
-13. **FUNDED_BY_FED edges** — organization → fiscal year
+4. **Ministry lineage** — MERGE existing (idempotent against 264 Aura nodes from Archana's notebook)
+5. **Organization nodes** (9,145) — from Databricks `ab_org_risk_flags` / `ab_master_profile`
+6. **Director nodes** (~19K multi-board) — from Databricks `multi_board_directors`
+7. **SITS_ON edges** — director → organization
+8. **RECEIVED_GRANT edges** — organization → ministry (from aggregated grants via Databricks `goa_grants_disclosure`)
+9. **FLAGGED_AS edges** — organization → risk flag
+10. **CLUSTER_MEMBER edges** — organization → organization (from Databricks `org_clusters_strong`)
+11. **FUNDED_BY_FED edges** — organization → fiscal year
 
 ---
 
@@ -179,7 +170,7 @@ ORDER BY total DESC;
 
 ## Anti-Patterns
 
-1. **CREATE instead of MERGE** — duplicates nodes, breaks queries
+1. **CREATE instead of MERGE** — duplicates nodes, breaks queries (especially critical with 264 existing Aura nodes)
 2. **Loading raw 1.8M grant rows as edges** — aggregate first (D003)
 3. **Missing KGL properties** — every node needs `kgl` and `kgl_handle`
-4. **Mixing this graph with ministry-genealogy-graph Neo4j** — separate containers (D007)
+4. **Reading local CSV files instead of Databricks** — all data from Databricks (D009)

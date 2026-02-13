@@ -24,12 +24,12 @@ Independently verify all claims, stress-test for counter-arguments, and produce 
 
 ### Step 2: Grant Amount Spot-Checks
 - Select 10 random (Organization, Ministry, FiscalYear) tuples from query results
-- Verify totals against raw `goa_grants_all.csv` by summing individual payments
+- Verify totals against Databricks `goa_grants_disclosure` by summing individual payments
 - Acceptable variance: < $1 (rounding only)
 
 ### Step 3: Director-Organization Verification
 - Select 5 random director→org links
-- Verify against `directors_2023.csv` raw data
+- Verify against Databricks `cra_directors_clean` raw data
 - Check: BN matches, name matches, position matches
 
 ### Step 4: Current State Validation
@@ -56,16 +56,16 @@ value,unit,confidence,validation_status,validator_notes
 - `LINEAGE` — "Ministry X was created by OIC Y on date Z"
 - `FUNDING` — "Organization A received $B from Ministry C in FY D"
 - `DIRECTOR` — "Director E sits on board of Organization A"
-- `DONATION` — "Director E donated $F to Party G in year H"
 - `RISK_FLAG` — "Organization A is flagged as J"
 - `CLUSTER` — "Organizations A and K share N directors"
+- `CONCENTRATION` — "Clustered orgs received $X avg vs $Y avg for non-clustered"
 
 ### Confidence Levels
 | Level | Criteria | Source |
 |-------|----------|--------|
-| HIGH | Verified against primary source document | OIC text, raw CSV row |
+| HIGH | Verified against primary source document | OIC text, Databricks table row |
 | MEDIUM | Derived from validated data via query | Graph traversal result |
-| LOW | Based on name matching or inference | Director-donation fuzzy match |
+| LOW | Based on name matching or inference | Fuzzy name match across datasets |
 | PENDING | Not yet verified | Awaiting human validation |
 
 ---
@@ -88,13 +88,13 @@ value,unit,confidence,validation_status,validator_notes
 - Both eras show it → systemic finding (still valuable, different narrative)
 - UCP-only pattern → finding inverts (abort this angle)
 
-### Argument 4: "Director-donation links are coincidental"
-**Challenge:** "Lots of people donate to political parties; being on a board AND donating doesn't mean anything"
-**Test:** Compute base rate — what % of all multi-board directors donated to ANY party? What % donated specifically to NDP? If NDP-funded-org directors donate to NDP at a significantly higher rate than the general director population, that's statistically meaningful.
+### Argument 4: "Cluster membership is coincidental"
+**Challenge:** "Organizations sharing directors is normal in the nonprofit sector; it doesn't indicate coordination or preferential funding"
+**Test:** Compare funding distributions for clustered vs non-clustered organizations receiving grants through NDP-restructured ministries. Use Kolmogorov-Smirnov or Mann-Whitney U test. If clustered orgs receive statistically significantly more per-org funding than non-clustered orgs (p < 0.05), the concentration pattern is meaningful. Also test: does cluster size correlate with funding amount?
 
 ### Argument 5: "Name matching errors"
-**Challenge:** "John Smith the director is not the same John Smith the donor"
-**Test:** For every director-donation match, check city/postal code overlap if available. Report the number of ambiguous matches vs confident matches. All ambiguous matches should be flagged `confidence: LOW`.
+**Challenge:** "Organization name matching between GOA grants and CRA is unreliable"
+**Test:** Use Databricks `goa_cra_matched` table (1,304 pre-matched records) as the gold standard. For any additional fuzzy matches, check city/province overlap. Report the number of ambiguous matches vs confident matches. All ambiguous matches should be flagged `confidence: LOW`.
 
 ---
 
@@ -103,7 +103,7 @@ value,unit,confidence,validation_status,validator_notes
 - `06-validation/fact-check-report.md` — pass/fail for each verification step
 - `06-validation/evidence-traceability.csv` — every claim with source citation
 - `06-validation/evidence-traceability.html` — interactive filterable version
-- `06-validation/counter-arguments.md` — pre-briefed responses to 5 challenges
+- `06-validation/counter-arguments.md` — pre-briefed responses to 5 counter-arguments
 
 ---
 
@@ -111,5 +111,5 @@ value,unit,confidence,validation_status,validator_notes
 
 1. **Skipping spot-checks** — "the query ran successfully" ≠ "the results are correct"
 2. **Ignoring the symmetry test** — this is the single most important counter-argument
-3. **Treating MEDIUM confidence as HIGH** — donation-based claims must be explicitly flagged
+3. **Treating MEDIUM confidence as HIGH** — cluster-based concentration claims must be explicitly flagged with statistical significance
 4. **Validating your own work** — ideally, fact-check agent reads synthesis output cold, without knowing the expected answers

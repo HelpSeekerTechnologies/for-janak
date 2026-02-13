@@ -1,6 +1,6 @@
 # Data Assembly Skill
 
-Prepare and enrich source datasets for graph ingestion. Tag grants with political eras, build director networks, collect political donations, and pull federal grants. All outputs are CSV files ready for Neo4j MERGE operations.
+Prepare and enrich source datasets for graph ingestion. Tag grants with political eras, build director networks, and pull federal grants. All data sourced from Databricks (D009). All outputs are CSV files ready for Neo4j MERGE operations.
 
 ---
 
@@ -8,17 +8,66 @@ Prepare and enrich source datasets for graph ingestion. Tag grants with politica
 
 - Tagging GOA grants with political era (NDP/UCP-Kenney/UCP-Smith)
 - Building director→organization bipartite networks from CRA T3010
-- Matching director names to Elections Alberta donation records
 - Pulling and linking federal Grants & Contributions data
+
+---
+
+## Databricks Connection Pattern
+
+All data is sourced from Databricks (D009). Use the `databricks-sdk` for table queries and Volume file reads.
+
+```python
+from databricks import sql as dbsql
+
+DATABRICKS_HOST = "<YOUR_DATABRICKS_HOST>"
+DATABRICKS_TOKEN = "<YOUR_DATABRICKS_TOKEN>"
+DATABRICKS_WAREHOUSE = "<YOUR_DATABRICKS_SQL_WAREHOUSE>"
+CATALOG = "dbw_unitycatalog_test"
+
+def get_databricks_connection():
+    return dbsql.connect(
+        server_hostname=DATABRICKS_HOST,
+        http_path=DATABRICKS_WAREHOUSE,
+        access_token=DATABRICKS_TOKEN,
+        catalog=CATALOG,
+        schema="default"
+    )
+
+def query_table(table_name, limit=None):
+    """Query a Databricks table and return as pandas DataFrame."""
+    conn = get_databricks_connection()
+    sql = f"SELECT * FROM {CATALOG}.default.{table_name}"
+    if limit:
+        sql += f" LIMIT {limit}"
+    df = pd.read_sql(sql, conn)
+    conn.close()
+    return df
+
+# Example queries:
+# grants = query_table("goa_grants_disclosure")         # 1,806,214 rows
+# directors = query_table("cra_directors_clean")         # 570,798 rows
+# clusters = query_table("org_clusters_strong")          # 4,636 rows
+# risk_flags = query_table("ab_org_risk_flags")          # 9,145 rows
+# multi_board = query_table("multi_board_directors")     # 19,156 rows
+# network_edges = query_table("org_network_edges_filtered")  # 154,015 rows
+```
 
 ---
 
 ## Section 1: Grant Political Era Tagging
 
-### Input Files
-- `C:\Users\alina\OneDrive\Desktop\goa_grants_all.csv` (1,806,202 rows)
-- `ministry-genealogy-graph/04-graph-build/databricks/entity_mapping.csv` (318 rows)
-- `ministry-genealogy-graph/04-graph-build/databricks/transform_events.csv` (54 rows)
+### Input Sources (Databricks — D009)
+- Databricks table: `goa_grants_disclosure` (1,806,214 rows)
+- Databricks Volume: `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/Ministry Data/entity_mapping.csv` (318 rows)
+- Databricks Volume: `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/Ministry Data/transform_events.csv` (54 rows)
+
+```sql
+-- GOA grants from Databricks
+SELECT * FROM dbw_unitycatalog_test.default.goa_grants_disclosure;
+
+-- Or for pre-matched GOA-CRA records
+SELECT * FROM dbw_unitycatalog_test.default.goa_cra_matched;
+```
 
 ### Political Era Boundaries (per D002)
 ```python
@@ -73,15 +122,28 @@ ndp_era_total, ucp_era_total, delta_pct
 
 ## Section 2: Director Network Construction
 
-### Input Files
-- `Janak Demo/Excploratory Analysis/data/cra/directors_2023.csv` (571,461 rows)
-- `Janak Demo/Excploratory Analysis/data/super_directors.csv` (50 rows)
-- `Janak Demo/Excploratory Analysis/data/clusters.csv` (380+ clusters)
+### Input Sources (Databricks — D009)
+- Databricks table: `cra_directors_clean` (570,798 rows — normalized director records)
+- Databricks table: `multi_board_directors` (19,156 rows — directors on 3+ boards)
+- Databricks table: `org_clusters_strong` (4,636 rows — cluster assignments)
+- Databricks table: `org_network_edges_filtered` (154,015 rows — org-to-org edges)
+- Databricks table: `ab_org_risk_flags` (9,145 rows — risk flags)
+
+```sql
+-- Multi-board directors
+SELECT * FROM dbw_unitycatalog_test.default.multi_board_directors;
+
+-- Pre-computed strong clusters
+SELECT * FROM dbw_unitycatalog_test.default.org_clusters_strong;
+
+-- Org-to-org network edges
+SELECT * FROM dbw_unitycatalog_test.default.org_network_edges_filtered;
+```
 
 ### Director Name Normalization
 ```python
 def normalize_director_name(last, first):
-    """Normalize for matching across CRA and Elections Alberta."""
+    """Normalize for matching across CRA datasets."""
     name = f"{last.strip().upper()}, {first.strip().upper()}"
     # Remove titles
     for title in ['DR.', 'REV.', 'HON.', 'MR.', 'MRS.', 'MS.', 'PROF.']:
@@ -101,34 +163,13 @@ def normalize_director_name(last, first):
 ### Output Files
 - `director_org_network.csv`: director_name, BN, org_name, position, n_boards
 - `governance_clusters.csv`: cluster_id, size, org_names, total_goa_funding, total_flags, ndp_era_funding
-- `director_names_for_matching.csv`: normalized_name, n_boards, orgs, total_org_funding
 
 ---
 
-## Section 3: Political Donation Matching
+## Section 3: Federal Grants Enrichment
 
-### Source
-Elections Alberta: `https://efpublic.elections.ab.ca/efContributorSearch.cfm`
-
-### Strategy (per D004 and D006)
-1. Start with top 100 multi-board directors (highest n_boards)
-2. Exact match on normalized `LAST, FIRST` name
-3. Record: contributor_name, amount, recipient_party, year
-4. If automated collection blocked → produce manual lookup instructions
-5. All donation-dependent claims tagged `confidence: MEDIUM`
-
-### Output Schema
-```
-director_name, party, amount, year, matched_to_orgs, n_orgs_funded_ndp_era
-```
-
----
-
-## Section 4: Federal Grants Enrichment
-
-### Source
-- Databricks: `dbw_unitycatalog_test` uploaded files OR
-- open.canada.ca: Federal Proactive Disclosure G&C dataset
+### Input Sources (Databricks — D009)
+- Databricks Volume: `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/GoC Grants/`
 
 ### Matching
 Primary: BN number (exact match to CRA T3010)
@@ -143,7 +184,7 @@ BN, org_name, federal_department, program, amount, fiscal_year, province
 
 ## Anti-Patterns
 
-1. **Don't fuzzy-match director names for donation linking** — exact match only (D004)
+1. **Don't read local CSV files** — all data comes from Databricks (D009)
 2. **Don't load individual grant payment rows into Neo4j** — aggregate first (D003)
 3. **Don't use CRA 2023 financial data** — use CRA 2022 (2023 only ~45% complete)
 4. **Don't skip blank Ministry rows silently** — log the count for audit trail

@@ -6,7 +6,7 @@ Write and execute multi-hop Cypher queries against the unified Neo4j graph to an
 
 ## When to Use
 
-- Writing Cypher queries that traverse ministry lineage + grants + directors + donations
+- Writing Cypher queries that traverse ministry lineage + grants + directors + governance clusters
 - Answering questions that require graph traversal (not possible with flat tables)
 - Extracting evidence chains for the traceability matrix
 
@@ -57,36 +57,45 @@ LIMIT 100
 
 ---
 
-### Query 2: Director-to-Donation Graph Walk
+### Query 2: Director-Cluster-Funding-Concentration
 
-**Question:** Which directors sit on boards of NDP-era funded organizations AND donated to the NDP?
+**Question:** Which governance clusters received disproportionate per-org funding through NDP-restructured ministries vs non-clustered orgs?
 
-**Why graph-only:** Requires walking Director→Organization→Grant→Ministry→TransformEvent AND Director→Donation→Party simultaneously. No single table has all these joins.
+**Why graph-only:** Requires traversing CLUSTER_MEMBER edges to identify governance clusters, then walking each cluster member's RECEIVED_GRANT to NDP-restructured ministries (via TransformEvent), and comparing the per-org funding distribution against non-clustered organizations. No flat table can resolve cluster membership + grant flows + ministry lineage simultaneously.
 
 ```cypher
-// Directors who donated to NDP
-MATCH (d:Director)-[don:DONATED_TO]->(party:PoliticalParty {name: 'NDP'})
-
-// Same directors on org boards
-MATCH (d)-[:SITS_ON]->(org:Organization)
-
-// Those orgs received grants from NDP-era ministries
-MATCH (org)-[g:RECEIVED_GRANT {political_era: 'NDP'}]->(m:Ministry)
-
-// The ministry was created/restructured during NDP era
-MATCH (m)<-[:TARGET_OF]-(evt:TransformEvent)
+// Step 1: Find NDP-restructured ministries
+MATCH (evt:TransformEvent)-[:TARGET_OF]->(m:Ministry)
 WHERE evt.event_date >= date('2015-05-24') AND evt.event_date <= date('2019-04-29')
+WITH collect(DISTINCT m.canonical_id) AS ndp_ministry_ids
 
-RETURN d.normalized_name AS director,
-       sum(don.amount) AS total_donated_ndp,
-       collect(DISTINCT org.name) AS organizations,
-       sum(g.amount) AS total_org_grants_ndp_era,
-       collect(DISTINCT m.name) AS ndp_ministries,
-       count(DISTINCT org) AS n_orgs
-ORDER BY total_org_grants_ndp_era DESC
+// Step 2: Clustered orgs — funding through NDP-restructured ministries
+UNWIND ndp_ministry_ids AS mid
+MATCH (org:Organization)-[g:RECEIVED_GRANT]->(m:Ministry {canonical_id: mid})
+WHERE g.political_era = 'NDP'
+WITH org, sum(g.amount) AS ndp_funding
+
+// Step 3: Check cluster membership
+OPTIONAL MATCH (org)-[c:CLUSTER_MEMBER]-(other:Organization)
+WITH org, ndp_funding,
+     CASE WHEN c IS NOT NULL THEN c.cluster_id ELSE null END AS cluster_id,
+     CASE WHEN c IS NOT NULL THEN true ELSE false END AS is_clustered
+
+// Step 4: Compare clustered vs non-clustered
+WITH is_clustered,
+     count(org) AS n_orgs,
+     sum(ndp_funding) AS total_funding,
+     avg(ndp_funding) AS avg_per_org,
+     percentileCont(ndp_funding, 0.5) AS median_per_org
+
+RETURN is_clustered, n_orgs, total_funding,
+       round(avg_per_org) AS avg_per_org,
+       round(median_per_org) AS median_per_org,
+       round(total_funding * 1.0 / n_orgs) AS funding_per_org
+ORDER BY is_clustered DESC
 ```
 
-**Output:** `director_donation_grant_chain.csv`
+**Output:** `cluster_funding_concentration.csv`
 
 ---
 
@@ -136,7 +145,11 @@ WHERE evt.event_date >= date('2019-04-30')
 {political_era: 'UCP_Kenney'} or {political_era: 'UCP_Smith'}
 ```
 
-Compare results side by side. If UCP shows same patterns, the finding is systemic (still valuable, just different narrative).
+For Query 2, run the same clustered vs non-clustered comparison but for UCP-restructured ministries. Compare:
+- Did the clustered/non-clustered funding disparity persist, grow, or reverse under UCP?
+- Did the same governance clusters benefit, or different ones?
+
+If UCP shows same patterns, the finding is systemic (still valuable, just different narrative).
 
 ---
 
@@ -146,9 +159,9 @@ Every query result row should be traceable:
 ```
 claim: "Organization X received $Y through Ministry Z (NDP-restructured)"
 source_1: "Ministry Z created by O.C. {number}/{year}" → SourceDocument node
-source_2: "Grant of $Y in FY{year}" → GOA grants CSV
-source_3: "Director A sits on Organization X board" → CRA T3010 directors
-source_4: "Director A donated ${amount} to NDP in {year}" → Elections Alberta
+source_2: "Grant of $Y in FY{year}" → Databricks goa_grants_disclosure
+source_3: "Director A sits on Organization X board" → Databricks cra_directors_clean
+source_4: "Organization X is in cluster C with N shared directors" → Databricks org_clusters_strong
 ```
 
 ---
@@ -157,5 +170,5 @@ source_4: "Director A donated ${amount} to NDP in {year}" → Elections Alberta
 
 1. **Don't interpret correlation as causation** — "funded through NDP-restructured ministry" ≠ "funded because of NDP"
 2. **Don't cherry-pick top results without context** — always report total population size
-3. **Don't present donation links without confidence levels** — exact name match ≠ confirmed same person
+3. **Don't conflate cluster membership with intent** — shared directors may be coincidental (test with distribution comparison)
 4. **Don't skip the symmetry test** — one-sided analysis is politically vulnerable (D005)

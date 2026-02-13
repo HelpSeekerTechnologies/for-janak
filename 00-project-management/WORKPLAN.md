@@ -2,33 +2,32 @@
 
 ## Mission
 
-Build a KGL v1.3-aligned Neo4j knowledge graph that unifies Alberta ministry lineage, grant flows, CRA charity data, director governance networks, and political donations to answer a **graph-only smoking gun question** for Government of Alberta political analysis.
+Build a KGL v1.3-aligned Neo4j knowledge graph that unifies Alberta ministry lineage, grant flows, CRA charity data, and director governance networks to answer a **graph-only smoking gun question** for Government of Alberta political analysis.
 
 ## The Question
 
-> "Which organizations saw the largest funding increases through NDP-created or NDP-restructured ministries (2015-2019), shared board directors with each other in governance clusters, and did those same directors appear as NDP donors — and what happened to that funding after UCP restructured the same ministries?"
+> "Which governance clusters (organizations sharing board directors) received disproportionate funding increases through NDP-restructured ministries compared to non-clustered organizations — and did that concentration pattern reverse under UCP?"
 
 ### Why Graph-Only
 
-This requires 5-hop heterogeneous traversal:
+This requires multi-hop heterogeneous traversal:
 ```
-(:Director)-[:SITS_ON]->(:Organization)-[:RECEIVED_GRANT]->(:Grant)
-  -[:FUNDED_BY]->(:Ministry)-[:TARGET_OF]->(:TransformEvent {era: 'NDP'})
-
-AND (:Director)-[:DONATED_TO]->(:PoliticalParty {name: 'NDP'})
+(:Director)-[:SITS_ON]->(:Organization)-[:CLUSTER_MEMBER]->(:Organization)
+  -[:RECEIVED_GRANT]->(:Ministry)-[:TARGET_OF]->(:TransformEvent {era: 'NDP'})
 
 AND temporal delta: NDP-era funding vs UCP-era funding through successor ministries
+AND clustered vs non-clustered funding distribution comparison
 ```
 
-No flat join can resolve ministry successor chains — that's the lineage graph. No tabular query can walk director→org→grant→ministry→event→era AND director→donation→party simultaneously.
+No flat join can resolve ministry successor chains — that's the lineage graph. No tabular query can simultaneously walk cluster membership + grant flows + ministry lineage + temporal era comparison.
 
 ---
 
-## Phase 0: Data Assembly (4 Parallel Agents)
+## Phase 0: Data Assembly (3 Parallel Agents)
 
 ### Agent 0A: Grant-Ministry Political Era Linker
 - **Status:** PENDING
-- **Input:** `goa_grants_all.csv` (1.8M rows) + `entity_mapping.csv` (318 rows) + `transform_events.csv` (54 rows)
+- **Input:** Databricks `goa_grants_disclosure` (1.8M rows) + Volume `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/Ministry Data/` (entity_mapping, transform_events)
 - **Logic:**
   1. Tag every grant row with `political_era`: NDP (2015-05 to 2019-04), UCP-Kenney (2019-04 to 2022-10), UCP-Smith (2022-10+)
   2. Tag with `ministry_restructured_by`: which political era's OIC transformed that ministry
@@ -39,31 +38,18 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 
 ### Agent 0B: CRA Director Network Builder
 - **Status:** PENDING
-- **Input:** `directors_2023.csv` (571K rows) + `clusters.csv` + `master_watchlist.csv`
+- **Input:** Databricks tables `cra_directors_clean` (570K rows) + `multi_board_directors` (19K) + `org_clusters_strong` (4,636) + `ab_org_risk_flags` (9,145)
 - **Logic:**
   1. Build director→organization bipartite graph
   2. Project to org→org shared-director edges (2+ shared = strong edge)
   3. Connected components → governance clusters
   4. Per cluster: aggregate GOA funding, risk flags, NDP-era recipients
-  5. Export normalized director name list for donation matching
-- **Output:** `01-data-assembly/director_org_network.csv`, `governance_clusters.csv`, `director_names_for_matching.csv`
+- **Output:** `01-data-assembly/director_org_network.csv`, `governance_clusters.csv`
 - **Skill:** `01-data-assembly/data-assembly.skill.md` (Director Network section)
 
-### Agent 0C: Elections Alberta Donation Collector
-- **Status:** PENDING (depends on 0B for director names)
-- **Input:** Director names from Agent 0B
-- **Logic:**
-  1. Query Elections Alberta contributor search for top multi-board directors
-  2. Parse: contributor name, amount, recipient party, year
-  3. Match director names to donation records
-  4. Flag directors donating to NDP AND sitting on NDP-era funded org boards
-- **Output:** `01-data-assembly/director_donations.csv`
-- **Fallback:** Manual download step if scraping blocked
-- **Skill:** `01-data-assembly/data-assembly.skill.md` (Political Donation Matching section)
-
-### Agent 0D: Federal Grants Enrichment
+### Agent 0C: Federal Grants Enrichment
 - **Status:** PENDING
-- **Input:** Federal G&C from open.canada.ca OR Databricks
+- **Input:** Databricks Volume `/Volumes/dbw_unitycatalog_test/uploads/uploaded_files/GoC Grants/`
 - **Logic:**
   1. Pull Federal G&C filtered to Province=AB
   2. Match on BN to CRA T3010
@@ -79,20 +65,20 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 ### Agent 1A: Schema Architect
 - **Status:** PENDING
 - **Input:** KGL skill definitions (kgl-core, neo4j-graph)
-- **Logic:** Generate unified KGL-aligned Neo4j DDL with 14 node types, 12 relationship types
+- **Logic:** Generate unified KGL-aligned Neo4j DDL with 12 node types, 10 relationship types
 - **Output:** `02-graph-build/neo4j/schema/unified-schema.cypher`
 - **Skill:** `02-graph-build/graph-construction.skill.md`
 
-### Agent 1B: Ingestion Pipeline
+### Agent 1B: Ingestion Pipeline (Extend Existing Aura Graph)
 - **Status:** PENDING (depends on Phase 0 + 1A)
-- **Input:** All Phase 0 outputs + existing ministry lineage data
+- **Input:** All Phase 0 outputs (264 ministry lineage nodes already in Aura — D011)
 - **Logic:**
-  1. Ministry lineage (114 entities, 54 events, 36 sources)
+  1. MERGE ministry lineage (idempotent — 264 nodes already exist from Archana's notebook)
   2. Organizations (9,145 AB charities from CRA)
   3. Directors (19K multi-board from CRA)
   4. SITS_ON, RECEIVED_GRANT, CLUSTER_MEMBER, FLAGGED_AS edges
-  5. Political donations, federal grants
-- **Output:** Populated Neo4j (~30K nodes, 500K+ relationships)
+  5. Federal grants
+- **Output:** Extended Neo4j Aura (~30K nodes, 500K+ relationships)
 - **Skill:** `02-graph-build/graph-construction.skill.md`
 
 ---
@@ -105,10 +91,10 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 - **Output:** `03-smoking-gun-queries/ndp_ministry_funding_trace.csv`
 - **Skill:** `03-smoking-gun-queries/graph-analysis.skill.md`
 
-### Agent 2B: Director-to-Donation Graph Walker
+### Agent 2B: Director-Cluster-Funding-Concentration Analyzer
 - **Status:** PENDING
-- **Query:** Directors who donated to NDP AND sit on boards of NDP-era funded orgs
-- **Output:** `03-smoking-gun-queries/director_donation_grant_chain.csv`
+- **Query:** Governance clusters (orgs sharing directors) that received disproportionate per-org funding through NDP-restructured ministries vs non-clustered orgs
+- **Output:** `03-smoking-gun-queries/cluster_funding_concentration.csv`
 - **Skill:** `03-smoking-gun-queries/graph-analysis.skill.md`
 
 ### Agent 2C: Governance Cluster Audit
@@ -132,7 +118,7 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 - **Artifacts:**
   1. `05-html-artifacts/00-process-overview.html` — pipeline animation
   2. `05-html-artifacts/01-ministry-lineage-political.html` — Sankey diagram
-  3. `05-html-artifacts/02-director-donation-network.html` — D3 force graph
+  3. `05-html-artifacts/02-director-cluster-network.html` — D3 force graph (governance clusters)
   4. `05-html-artifacts/03-cluster-funding-heatmap.html` — era heatmap
   5. `05-html-artifacts/04-smoking-gun-executive.html` — executive dashboard
 - **Skill:** `05-html-artifacts/visualization.skill.md`
@@ -167,19 +153,16 @@ PHASE 0 (Parallel)           PHASE 1 (Sequential)      PHASE 2 (Parallel)       
 │ Grant-Era│        │       │ Schema   │              │ NDP Fund │             │ Synthesis│            │ FactCheck│
 └──────────┘        ├──────→│ Architect│──┐           │ Tracer   │──┐          └──────────┘            └──────────┘
 ┌──────────┐        │       └──────────┘  │           └──────────┘  │          ┌──────────┐            ┌──────────┐
-│ Agent 0B │────┐   │       ┌──────────┐  │           ┌──────────┐  │          │ Agent 3B │            │ Agent 4B │
-│ Directors│    ├───┤       │ Agent 1B │  │           │ Agent 2B │  ├─────────→│ HTML Gen │            │ Stress   │
-└──────────┘    │   │       │ Ingest   │──┘──────────→│ Dir-Don  │  │          └──────────┘            └──────────┘
-┌──────────┐    │   │       └──────────┘              └──────────┘  │          ┌──────────┐
-│ Agent 0C │←───┘   │                                 ┌──────────┐  │          │ Agent 3C │
-│ Elections│────────┤                                 │ Agent 2C │──┘          │ Evidence │
-└──────────┘        │                                 │ Clusters │             └──────────┘
-┌──────────┐        │                                 └──────────┘
-│ Agent 0D │────────┘
-│ Federal  │
-└──────────┘
+│ Agent 0B │────────┤       ┌──────────┐  │           ┌──────────┐  │          │ Agent 3B │            │ Agent 4B │
+│ Directors│        │       │ Agent 1B │  │           │ Agent 2B │  ├─────────→│ HTML Gen │            │ Stress   │
+└──────────┘        │       │ Ingest   │──┘──────────→│Clust-Fund│  │          └──────────┘            └──────────┘
+┌──────────┐        │       │ (Aura)   │              └──────────┘  │          ┌──────────┐
+│ Agent 0C │────────┘       └──────────┘              ┌──────────┐  │          │ Agent 3C │
+│ Federal  │                                          │ Agent 2C │──┘          │ Evidence │
+└──────────┘                                          │ Clusters │             └──────────┘
+                                                      └──────────┘
 
-Total: 13 agent instances | Max concurrency: 4 | Estimated phases: 5
+Total: 12 agent instances | Max concurrency: 3 | Estimated phases: 5
 ```
 
 ---
@@ -190,7 +173,7 @@ Total: 13 agent instances | Max concurrency: 4 | Estimated phases: 5
 |---|----------|--------|-------------------|
 | 1 | `00-process-overview.html` | HTML | "Did the pipeline run these steps?" |
 | 2 | `01-ministry-lineage-political.html` | HTML (Sankey) | "Do transformations match OICs?" |
-| 3 | `02-director-donation-network.html` | HTML (D3) | "Are director-donation links real?" |
+| 3 | `02-director-cluster-network.html` | HTML (D3) | "Are cluster-director links real?" |
 | 4 | `03-cluster-funding-heatmap.html` | HTML (Heatmap) | "Do clusters match known relationships?" |
 | 5 | `04-smoking-gun-executive.html` | HTML (Dashboard) | "Are headline numbers correct?" |
 | 6 | `evidence-traceability.csv` | CSV | "Every claim has a source — spot-check any row" |
@@ -199,4 +182,4 @@ Total: 13 agent instances | Max concurrency: 4 | Estimated phases: 5
 | 9 | `counter-arguments.md` | Markdown | "Are rebuttals addressed?" |
 | 10 | `unified-schema.cypher` | Cypher DDL | "Is schema KGL-compliant?" |
 | 11 | `grants_political_era.csv` | CSV | "Spot-check era tags vs OIC dates" |
-| 12 | Neo4j browser (localhost:7474) | Live graph | "Run any query, verify any claim" |
+| 12 | Neo4j Aura (`<YOUR_NEO4J_AURA_URI>`) | Live graph | "Run any query, verify any claim" |
