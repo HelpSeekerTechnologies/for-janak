@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operation Lineage Audit — Smoking Gun Executive Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  /* ===== CSS CUSTOM PROPERTIES — HelpSeeker 2026 Brand ===== */
+  :root {
+    --primary-teal: #28bcb8;
+    --aqua: #4bc2c3;
+    --navy: #103656;
+    --light-bg: #f8fffe;
+    --text-primary: #1a1a2e;
+    --card-shadow: 0 2px 12px rgba(16, 54, 86, 0.10);
+    --border-subtle: #d4eeed;
+    --red-flag: #e74c3c;
+    --green-positive: #27ae60;
+    --amber-warn: #f39c12;
+    --hero-gradient: linear-gradient(135deg, #103656 0%, #1a4a6e 40%, #174260 100%);
+  }
+
+  /* ===== RESET & BASE ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--light-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== HEADER / BRAND BAR ===== */
+  .brand-header {
+    background: var(--hero-gradient);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-header h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .brand-header h1 span {
+    color: var(--primary-teal);
+  }
+  .brand-header .subtitle {
+    font-size: 0.82rem;
+    opacity: 0.75;
+    font-weight: 400;
+  }
+  .brand-header .brand-right {
+    text-align: right;
+    font-size: 0.78rem;
+    opacity: 0.65;
+  }
+
+  /* ===== CONTAINER ===== */
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* ===== HERO METRICS BANNER ===== */
+  .hero-banner {
+    background: var(--hero-gradient);
+    margin: 0 -24px;
+    padding: 36px 24px 40px;
+    position: relative;
+  }
+  .hero-banner::after {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 0; right: 0;
+    height: 20px;
+    background: linear-gradient(to bottom, rgba(16,54,86,0.06), transparent);
+  }
+  .hero-title {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 28px;
+  }
+  .hero-title h2 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .hero-title p {
+    font-size: 0.92rem;
+    opacity: 0.7;
+  }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .hero-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(75, 194, 195, 0.25);
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .hero-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-teal);
+  }
+  .hero-card .metric-value {
+    font-size: 2.6rem;
+    font-weight: 800;
+    color: var(--primary-teal);
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .hero-card .metric-label {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.4;
+  }
+  .hero-card .metric-sublabel {
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.5);
+    margin-top: 4px;
+  }
+
+  /* ===== SECTION CARDS ===== */
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-top: 32px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-header .section-number {
+    background: var(--primary-teal);
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 0.85rem;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+  .section-body {
+    padding: 28px 24px;
+  }
+
+  /* ===== CHART CONTAINERS ===== */
+  .chart-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .chart-box {
+    position: relative;
+  }
+  .chart-box canvas {
+    max-height: 380px;
+  }
+  .chart-annotation {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #f0faf9;
+    border-left: 3px solid var(--primary-teal);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.84rem;
+    color: #3a5a6e;
+    line-height: 1.5;
+  }
+
+  /* ===== STAT HIGHLIGHT CARDS ===== */
+  .stat-highlight-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-highlight {
+    background: #f0faf9;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-highlight .sh-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .stat-highlight .sh-label {
+    font-size: 0.78rem;
+    color: #5a7a8a;
+    margin-top: 2px;
+  }
+
+  /* ===== DATA TABLE ===== */
+  .table-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .table-controls .info-text {
+    font-size: 0.82rem;
+    color: #7a8a9a;
+  }
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  table.data-table thead {
+    background: var(--navy);
+    color: #fff;
+  }
+  table.data-table th {
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+  }
+  table.data-table th:hover {
+    background: rgba(40, 188, 184, 0.2);
+  }
+  table.data-table th .sort-arrow {
+    margin-left: 4px;
+    opacity: 0.4;
+    font-size: 0.7rem;
+  }
+  table.data-table th.sorted-asc .sort-arrow,
+  table.data-table th.sorted-desc .sort-arrow {
+    opacity: 1;
+    color: var(--primary-teal);
+  }
+  table.data-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #eef5f4;
+    white-space: nowrap;
+  }
+  table.data-table tbody tr:hover {
+    background: #f0faf9;
+  }
+  table.data-table tbody tr:nth-child(even) {
+    background: #fafefe;
+  }
+  table.data-table tbody tr:nth-child(even):hover {
+    background: #edf8f7;
+  }
+  .change-negative {
+    color: var(--red-flag);
+    font-weight: 600;
+  }
+  .change-positive {
+    color: var(--green-positive);
+    font-weight: 600;
+  }
+  .flag-badge {
+    display: inline-block;
+    background: #fef0e7;
+    color: #d35400;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 28px;
+    text-align: center;
+  }
+  .flag-badge.high {
+    background: #fde8e8;
+    color: var(--red-flag);
+  }
+
+  /* ===== SYMMETRY TEST PANEL ===== */
+  .symmetry-grid {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    align-items: center;
+  }
+  .symmetry-side {
+    padding: 24px;
+    border-radius: 10px;
+  }
+  .symmetry-side.ndp {
+    background: linear-gradient(135deg, #fff4ec, #ffeede);
+    border: 1px solid #f5d0a9;
+  }
+  .symmetry-side.ucp {
+    background: linear-gradient(135deg, #edf8f7, #e0f5f4);
+    border: 1px solid #b8e6e4;
+  }
+  .symmetry-side h4 {
+    font-size: 1rem;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid currentColor;
+  }
+  .symmetry-side.ndp h4 { color: #c0392b; border-color: #e74c3c; }
+  .symmetry-side.ucp h4 { color: #1a8a7d; border-color: var(--primary-teal); }
+  .symmetry-vs {
+    text-align: center;
+    font-weight: 800;
+    font-size: 1.3rem;
+    color: var(--navy);
+  }
+  .disparity-bar-wrap {
+    margin: 10px 0;
+  }
+  .disparity-bar-label {
+    font-size: 0.82rem;
+    color: #5a6a7a;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .disparity-bar-track {
+    height: 24px;
+    background: #e8eef0;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+  .disparity-bar-fill {
+    height: 100%;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    transition: width 1s ease;
+  }
+  .disparity-bar-fill.ndp-bar { background: linear-gradient(90deg, #e67e22, #e74c3c); }
+  .disparity-bar-fill.ucp-bar { background: linear-gradient(90deg, #28bcb8, #1a8a7d); }
+
+  .verdict-box {
+    margin-top: 24px;
+    padding: 18px 24px;
+    background: linear-gradient(135deg, #103656, #1a4a6e);
+    border-radius: 10px;
+    color: #fff;
+    text-align: center;
+  }
+  .verdict-box .verdict-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--primary-teal);
+  }
+  .verdict-box .verdict-label {
+    font-size: 0.88rem;
+    opacity: 0.85;
+    margin-top: 4px;
+  }
+
+  /* ===== METHODOLOGY FOOTER ===== */
+  .methodology-footer {
+    margin-top: 40px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .methodology-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    background: #f4faf9;
+    cursor: pointer;
+    user-select: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--navy);
+    transition: background 0.2s;
+  }
+  .methodology-toggle:hover {
+    background: #eaf5f4;
+  }
+  .methodology-toggle .toggle-icon {
+    font-size: 1.2rem;
+    transition: transform 0.3s;
+    color: var(--primary-teal);
+  }
+  .methodology-toggle.open .toggle-icon {
+    transform: rotate(180deg);
+  }
+  .methodology-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .methodology-content.open {
+    max-height: 800px;
+  }
+  .methodology-inner {
+    padding: 24px;
+    font-size: 0.85rem;
+    color: #4a5a6a;
+    line-height: 1.7;
+  }
+  .methodology-inner h4 {
+    color: var(--navy);
+    font-size: 0.9rem;
+    margin: 16px 0 8px;
+  }
+  .methodology-inner h4:first-child {
+    margin-top: 0;
+  }
+  .provenance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .provenance-stat {
+    background: #f4faf9;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .provenance-stat .pv-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .provenance-stat .pv-label {
+    font-size: 0.75rem;
+    color: #7a8a9a;
+    margin-top: 2px;
+  }
+
+  /* ===== PAGE FOOTER ===== */
+  .page-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.78rem;
+    color: #8a9aaa;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 40px;
+  }
+  .page-footer strong {
+    color: var(--navy);
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 900px) {
+    .chart-row { grid-template-columns: 1fr; }
+    .symmetry-grid { grid-template-columns: 1fr; gap: 12px; }
+    .symmetry-vs { padding: 8px 0; }
+    .hero-card .metric-value { font-size: 2rem; }
+  }
+  @media (max-width: 600px) {
+    .brand-header { padding: 14px 16px; }
+    .container { padding: 0 12px 40px; }
+    .section-body { padding: 20px 16px; }
+    .hero-banner { padding: 24px 12px 28px; }
+    .hero-grid { gap: 12px; }
+  }
+
+  /* ===== PRINT ===== */
+  @media print {
+    body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .brand-header, .hero-banner, .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+    .hero-card { break-inside: avoid; }
+    .methodology-content { max-height: none !important; }
+    .chart-box canvas { max-height: 300px; }
+    .container { max-width: 100%; padding: 0 12px 20px; }
+    .no-print { display: none !important; }
+  }
+
+  /* ===== TOOLTIP OVERRIDE ===== */
+  .chartjs-tooltip { font-family: 'Segoe UI', sans-serif !important; }
+
+  /* ===== ANIMATION ===== */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section { animation: fadeInUp 0.5s ease both; }
+  .section:nth-child(2) { animation-delay: 0.1s; }
+  .section:nth-child(3) { animation-delay: 0.2s; }
+  .section:nth-child(4) { animation-delay: 0.3s; }
+  .section:nth-child(5) { animation-delay: 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- ===== BRAND HEADER ===== -->
+<header class="brand-header">
+  <div>
+    <h1>Operation Lineage Audit &mdash; <span>HelpSeeker Technologies</span></h1>
+    <div class="subtitle">Smoking Gun Executive Dashboard</div>
+  </div>
+  <div class="brand-right">
+    Governance Network Analysis<br>
+    Alberta Grant &amp; Charity Data
+  </div>
+</header>
+
+<!-- ===== HERO METRICS BANNER ===== -->
+<div class="container">
+  <div class="hero-banner">
+    <div class="hero-title">
+      <h2>Key Findings at a Glance</h2>
+      <p>Cluster-funding disparity analysis across political eras through NDP-restructured ministries</p>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="metric-value">10.76x</div>
+        <div class="metric-label">Cluster-Funding Disparity Ratio</div>
+        <div class="metric-sublabel">NDP era &mdash; Clustered vs Non-Clustered avg funding</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$11.69B</div>
+        <div class="metric-label">Total NDP-Era Funding</div>
+        <div class="metric-sublabel">Through 13 NDP-restructured ministries</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">3.87x</div>
+        <div class="metric-label">NDP Disparity vs UCP</div>
+        <div class="metric-sublabel">NDP 10.76x vs UCP 2.78x &mdash; 3.87x worse</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">44</div>
+        <div class="metric-label">Governance Clusters</div>
+        <div class="metric-sublabel">Capturing $3.46B in concentrated funding</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 1: THE DISPARITY ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h3>The Disparity &mdash; Clustered vs Non-Clustered Funding</h3>
+    </div>
+    <div class="section-body">
+      <div class="stat-highlight-row">
+        <div class="stat-highlight">
+          <div class="sh-value">106</div>
+          <div class="sh-label">Clustered Organizations</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">$32.6M</div>
+          <div class="sh-label">Clustered Avg Funding</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">2,716</div>
+          <div class="sh-label">Non-Clustered Organizations</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">$3.03M</div>
+          <div class="sh-label">Non-Clustered Avg Funding</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">10.76x</div>
+          <div class="sh-label">Average Disparity</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">6.21x</div>
+          <div class="sh-label">Median Disparity</div>
+        </div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-box">
+          <canvas id="chartDisparity"></canvas>
+          <div class="chart-annotation">
+            <strong>Average funding:</strong> Clustered orgs received $32,613,683 on average vs $3,031,307 for non-clustered &mdash; a 10.76x disparity ratio during the NDP era.
+          </div>
+        </div>
+        <div class="chart-box">
+          <canvas id="chartDisparityMedian"></canvas>
+          <div class="chart-annotation">
+            <strong>Median funding:</strong> Clustered orgs had a median of $648,259 vs $104,451 for non-clustered &mdash; a 6.21x disparity. The median comparison confirms the pattern is not driven solely by outliers.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 2: POLITICAL ERA TRAJECTORY ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h3>Political Era Funding Trajectory &mdash; Through 13 NDP-Restructured Ministries</h3>
+    </div>
+    <div class="section-body">
+      <div class="stat-highlight-row">
+        <div class="stat-highlight">
+          <div class="sh-value">$40.4M</div>
+          <div class="sh-label">PC Era (752 orgs)</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value" style="color: var(--red-flag);">$11.69B</div>
+          <div class="sh-label">NDP Era (2,822 orgs)</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">$8.67B</div>
+          <div class="sh-label">UCP Kenney (1,220 orgs)</div>
+        </div>
+        <div class="stat-highlight">
+          <div class="sh-value">$5.48B</div>
+          <div class="sh-label">UCP Smith (426 orgs)</div>
+        </div>
+      </div>
+      <div class="chart-box">
+        <canvas id="chartEraFunding" style="max-height:420px;"></canvas>
+        <div class="chart-annotation">
+          <strong>Critical finding:</strong> Tracing the <em>same 13 NDP-restructured ministries</em> across eras reveals a dramatic spike during the NDP era ($11.69B), which was 289x the PC baseline. UCP eras show a declining trajectory: Kenney $8.67B, Smith $5.48B.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 3: TOP 10 GOVERNANCE CLUSTERS ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <h3>Top 10 Governance Clusters by NDP-Era Funding</h3>
+    </div>
+    <div class="section-body">
+      <div class="table-controls">
+        <div class="info-text">Click any column header to sort. Showing top 10 of 44 clusters.</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="clusterTable">
+          <thead>
+            <tr>
+              <th data-sort="cluster" data-type="number">Cluster <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="size" data-type="number">Size <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="ndp" data-type="number">NDP Funding <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="ucp" data-type="number">UCP Funding <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="change" data-type="number">Change <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="flags" data-type="number">Flags <span class="sort-arrow">&#9650;&#9660;</span></th>
+              <th data-sort="org" data-type="string">Key Organization <span class="sort-arrow">&#9650;&#9660;</span></th>
+            </tr>
+          </thead>
+          <tbody id="clusterTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 4: SYMMETRY TEST ===== -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <h3>Symmetry Test &mdash; NDP vs UCP Disparity Comparison</h3>
+    </div>
+    <div class="section-body">
+      <div class="symmetry-grid">
+        <!-- NDP Side -->
+        <div class="symmetry-side ndp">
+          <h4>NDP Era Disparity</h4>
+          <div class="disparity-bar-wrap">
+            <div class="disparity-bar-label">
+              <span>Average Disparity</span>
+              <span><strong>10.76x</strong></span>
+            </div>
+            <div class="disparity-bar-track">
+              <div class="disparity-bar-fill ndp-bar" style="width: 100%;">10.76x</div>
+            </div>
+          </div>
+          <div class="disparity-bar-wrap">
+            <div class="disparity-bar-label">
+              <span>Median Disparity</span>
+              <span><strong>6.21x</strong></span>
+            </div>
+            <div class="disparity-bar-track">
+              <div class="disparity-bar-fill ndp-bar" style="width: 57.7%;">6.21x</div>
+            </div>
+          </div>
+          <div style="margin-top:14px; font-size:0.84rem; color:#8b4513;">
+            Clustered orgs: 106 &nbsp;|&nbsp; Non-clustered: 2,716<br>
+            Total funding: $11.69B through 13 ministries
+          </div>
+        </div>
+
+        <!-- VS Divider -->
+        <div class="symmetry-vs">VS</div>
+
+        <!-- UCP Side -->
+        <div class="symmetry-side ucp">
+          <h4>UCP Era Disparity</h4>
+          <div class="disparity-bar-wrap">
+            <div class="disparity-bar-label">
+              <span>Average Disparity</span>
+              <span><strong>2.78x</strong></span>
+            </div>
+            <div class="disparity-bar-track">
+              <div class="disparity-bar-fill ucp-bar" style="width: 25.8%;">2.78x</div>
+            </div>
+          </div>
+          <div class="disparity-bar-wrap">
+            <div class="disparity-bar-label">
+              <span>Median Disparity</span>
+              <span><strong>&mdash;</strong></span>
+            </div>
+            <div class="disparity-bar-track">
+              <div class="disparity-bar-fill ucp-bar" style="width: 0%;"></div>
+            </div>
+          </div>
+          <div style="margin-top:14px; font-size:0.84rem; color:#1a6a5a;">
+            Combined UCP eras (Kenney + Smith)<br>
+            Total funding: $14.15B through same ministries
+          </div>
+        </div>
+      </div>
+
+      <!-- Verdict -->
+      <div class="verdict-box">
+        <div class="verdict-value">3.87x</div>
+        <div class="verdict-label">NDP cluster-funding disparity was <strong>3.87 times worse</strong> than UCP (10.76x vs 2.78x).<br>This asymmetry suggests the disparity is era-specific, not structural.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SECTION 5: METHODOLOGY & DATA PROVENANCE ===== -->
+  <div class="methodology-footer">
+    <button class="methodology-toggle" id="methodologyToggle" aria-expanded="false" aria-controls="methodologyContent">
+      <span>Section 5: Methodology &amp; Data Provenance</span>
+      <span class="toggle-icon">&#9660;</span>
+    </button>
+    <div class="methodology-content" id="methodologyContent">
+      <div class="methodology-inner">
+        <h4>Neo4j Graph Database Statistics</h4>
+        <div class="provenance-grid">
+          <div class="provenance-stat">
+            <div class="pv-value">35,075</div>
+            <div class="pv-label">RECEIVED_GRANT edges</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">11,023</div>
+            <div class="pv-label">SITS_ON edges</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">9,081</div>
+            <div class="pv-label">SHARED_DIRECTORS edges</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">154K+</div>
+            <div class="pv-label">Total network edges</div>
+          </div>
+        </div>
+
+        <h4>Source Data</h4>
+        <div class="provenance-grid">
+          <div class="provenance-stat">
+            <div class="pv-value">1.8M</div>
+            <div class="pv-label">GOA grant records</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">9,145</div>
+            <div class="pv-label">CRA charities</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">19,156</div>
+            <div class="pv-label">Directors mapped</div>
+          </div>
+          <div class="provenance-stat">
+            <div class="pv-value">702,930</div>
+            <div class="pv-label">Grant groups analyzed</div>
+          </div>
+        </div>
+
+        <h4>Matching &amp; Coverage</h4>
+        <p>
+          <strong>Entity match rate:</strong> 17,993 of 702,930 grant groups matched to CRA charity entities (2.6% match rate).
+          This conservative matching ensures high precision &mdash; only organizations with confident identity linkage are included
+          in the governance network analysis.
+        </p>
+
+        <h4>Analytical Approach</h4>
+        <p>
+          Governance clusters are identified via shared-director network analysis. Two organizations are linked if they share
+          one or more board directors (from CRA T3010 filings). Connected components in this network define governance clusters.
+          Funding disparity is measured by comparing average and median grant funding between organizations within governance
+          clusters (clustered) versus those with no board-level connections (non-clustered).
+        </p>
+        <p>
+          The <strong>political era comparison</strong> traces funding exclusively through the <em>same 13 ministries</em> that
+          were restructured during the NDP government (2015-2019), ensuring an apples-to-apples comparison. The symmetry test
+          asks: if the disparity were merely structural (i.e., large orgs naturally cluster), it should persist equally across
+          political eras. The 3.87x difference between NDP and UCP disparity ratios suggests era-specific factors.
+        </p>
+
+        <h4>Limitations &amp; Caveats</h4>
+        <ul style="margin-left:20px; margin-top:6px;">
+          <li>2.6% match rate means findings apply to matched subset; unmatched organizations may show different patterns.</li>
+          <li>Director data from CRA T3010 covers registered charities only; non-charity nonprofits and for-profit entities are excluded from governance network.</li>
+          <li>Cluster analysis detects structural governance connections, not intent or impropriety.</li>
+          <li>PC era data is limited (752 orgs, $40.4M) and may reflect incomplete historical records rather than actual funding levels.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE FOOTER ===== -->
+  <div class="page-footer">
+    <strong>Operation Lineage Audit</strong> &mdash; HelpSeeker Technologies &copy; 2026<br>
+    Generated from Neo4j graph analysis of Alberta Government grants &amp; CRA charity governance data.<br>
+    This dashboard is a self-contained HTML artifact. No external data connections required.
+  </div>
+</div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+(function() {
+  'use strict';
+
+  // ===== COLOR PALETTE =====
+  const TEAL = '#28bcb8';
+  const AQUA = '#4bc2c3';
+  const NAVY = '#103656';
+  const RED  = '#e74c3c';
+  const AMBER = '#f39c12';
+  const GREEN = '#27ae60';
+
+  // ===== CHART.JS DEFAULTS =====
+  Chart.defaults.font.family = "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif";
+  Chart.defaults.font.size = 13;
+  Chart.defaults.color = '#4a5a6a';
+
+  // ===== SECTION 1: DISPARITY CHARTS =====
+
+  // Average funding comparison
+  new Chart(document.getElementById('chartDisparity').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Clustered (106 orgs)', 'Non-Clustered (2,716 orgs)'],
+      datasets: [{
+        label: 'Average Funding ($)',
+        data: [32613683, 3031307],
+        backgroundColor: [TEAL, '#b0d8d7'],
+        borderColor: [NAVY, '#7abab8'],
+        borderWidth: 1,
+        borderRadius: 6,
+        barPercentage: 0.6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Average Funding per Organization (NDP Era)',
+          font: { size: 15, weight: '600' },
+          color: NAVY,
+          padding: { bottom: 16 }
+        },
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: NAVY,
+          titleFont: { weight: '600' },
+          callbacks: {
+            label: function(ctx) {
+              return '$' + ctx.parsed.y.toLocaleString('en-US');
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#eef2f4' },
+          ticks: {
+            callback: function(val) {
+              if (val >= 1e6) return '$' + (val / 1e6).toFixed(0) + 'M';
+              if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+              return '$' + val;
+            }
+          }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // Median funding comparison
+  new Chart(document.getElementById('chartDisparityMedian').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['Clustered (106 orgs)', 'Non-Clustered (2,716 orgs)'],
+      datasets: [{
+        label: 'Median Funding ($)',
+        data: [648259, 104451],
+        backgroundColor: ['#f39c12', '#fad7a0'],
+        borderColor: ['#d68910', '#d4ac6e'],
+        borderWidth: 1,
+        borderRadius: 6,
+        barPercentage: 0.6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        title: {
+          display: true,
+          text: 'Median Funding per Organization (NDP Era)',
+          font: { size: 15, weight: '600' },
+          color: NAVY,
+          padding: { bottom: 16 }
+        },
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: NAVY,
+          titleFont: { weight: '600' },
+          callbacks: {
+            label: function(ctx) {
+              return '$' + ctx.parsed.y.toLocaleString('en-US');
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#eef2f4' },
+          ticks: {
+            callback: function(val) {
+              if (val >= 1e6) return '$' + (val / 1e6).toFixed(0) + 'M';
+              if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+              return '$' + val;
+            }
+          }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // ===== SECTION 2: POLITICAL ERA FUNDING =====
+  new Chart(document.getElementById('chartEraFunding').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: ['PC Era', 'NDP Era', 'UCP (Kenney)', 'UCP (Smith)'],
+      datasets: [
+        {
+          label: 'Total Funding ($)',
+          data: [40428722, 11690079023, 8668999576, 5482024092],
+          backgroundColor: ['#95a5a6', RED, AQUA, TEAL],
+          borderColor: ['#7f8c8d', '#c0392b', '#3aa8a9', '#1fa09c'],
+          borderWidth: 1,
+          borderRadius: 6,
+          barPercentage: 0.55,
+          yAxisID: 'y'
+        },
+        {
+          label: 'Org Count',
+          data: [752, 2822, 1220, 426],
+          type: 'line',
+          borderColor: NAVY,
+          backgroundColor: 'rgba(16, 54, 86, 0.1)',
+          borderWidth: 2,
+          pointRadius: 6,
+          pointBackgroundColor: NAVY,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2,
+          pointHoverRadius: 8,
+          tension: 0.3,
+          fill: false,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: 'Funding Through 13 NDP-Restructured Ministries by Political Era',
+          font: { size: 15, weight: '600' },
+          color: NAVY,
+          padding: { bottom: 16 }
+        },
+        legend: {
+          position: 'top',
+          labels: { usePointStyle: true, padding: 16 }
+        },
+        tooltip: {
+          backgroundColor: NAVY,
+          titleFont: { weight: '600' },
+          callbacks: {
+            label: function(ctx) {
+              if (ctx.dataset.yAxisID === 'y1') {
+                return 'Organizations: ' + ctx.parsed.y.toLocaleString('en-US');
+              }
+              var val = ctx.parsed.y;
+              if (val >= 1e9) return 'Funding: $' + (val / 1e9).toFixed(2) + 'B';
+              if (val >= 1e6) return 'Funding: $' + (val / 1e6).toFixed(1) + 'M';
+              return 'Funding: $' + val.toLocaleString('en-US');
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          type: 'linear',
+          position: 'left',
+          beginAtZero: true,
+          grid: { color: '#eef2f4' },
+          title: {
+            display: true,
+            text: 'Total Funding ($)',
+            font: { weight: '600' },
+            color: NAVY
+          },
+          ticks: {
+            callback: function(val) {
+              if (val >= 1e9) return '$' + (val / 1e9).toFixed(0) + 'B';
+              if (val >= 1e6) return '$' + (val / 1e6).toFixed(0) + 'M';
+              return '$' + val;
+            }
+          }
+        },
+        y1: {
+          type: 'linear',
+          position: 'right',
+          beginAtZero: true,
+          grid: { drawOnChartArea: false },
+          title: {
+            display: true,
+            text: 'Organization Count',
+            font: { weight: '600' },
+            color: NAVY
+          }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // ===== SECTION 3: SORTABLE TABLE =====
+  var clusterData = [
+    { cluster: 750,  size: 5,  ndp: 3221368651, ucp: 3641649694, change: 13,   flags: 6,  org: 'NAIT' },
+    { cluster: 480,  size: 14, ndp: 78055437,   ucp: 17452637,   change: -78,  flags: 51, org: 'Catholic Charities' },
+    { cluster: 881,  size: 6,  ndp: 56442268,   ucp: 1045100,    change: -98,  flags: 6,  org: 'Calgary Zoo' },
+    { cluster: 920,  size: 7,  ndp: 26107136,   ucp: 0,          change: -100, flags: 18, org: 'Edmonton Symphony' },
+    { cluster: 228,  size: 7,  ndp: 21482271,   ucp: 0,          change: -100, flags: 13, org: 'National Music Centre' },
+    { cluster: 20,   size: 1,  ndp: 11462197,   ucp: 17301500,   change: 51,   flags: 2,  org: 'Burman University' },
+    { cluster: 183,  size: 6,  ndp: 9391684,    ucp: 0,          change: -100, flags: 15, org: 'Covenant Health' },
+    { cluster: 1089, size: 3,  ndp: 7234848,    ucp: 0,          change: -100, flags: 10, org: 'Theatre Calgary' },
+    { cluster: 1530, size: 5,  ndp: 6897624,    ucp: 2577064,    change: -63,  flags: 15, org: 'Alberta Conservation Assoc' },
+    { cluster: 1144, size: 7,  ndp: 4502244,    ucp: 0,          change: -100, flags: 14, org: 'YMCA Edmonton' }
+  ];
+
+  function formatCurrency(val) {
+    if (val === 0) return '$0';
+    if (val >= 1e9) return '$' + (val / 1e9).toFixed(2) + 'B';
+    if (val >= 1e6) return '$' + (val / 1e6).toFixed(2) + 'M';
+    if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+    return '$' + val.toLocaleString('en-US');
+  }
+
+  function renderTable(data) {
+    var tbody = document.getElementById('clusterTableBody');
+    tbody.innerHTML = '';
+    data.forEach(function(row) {
+      var changeClass = row.change >= 0 ? 'change-positive' : 'change-negative';
+      var changeText = (row.change >= 0 ? '+' : '') + row.change + '%';
+      var flagClass = row.flags >= 15 ? 'high' : '';
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + row.cluster + '</td>' +
+        '<td>' + row.size + '</td>' +
+        '<td>' + formatCurrency(row.ndp) + '</td>' +
+        '<td>' + formatCurrency(row.ucp) + '</td>' +
+        '<td class="' + changeClass + '">' + changeText + '</td>' +
+        '<td><span class="flag-badge ' + flagClass + '">' + row.flags + '</span></td>' +
+        '<td>' + row.org + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Initial render
+  renderTable(clusterData);
+
+  // Sort state
+  var currentSort = { col: null, asc: true };
+
+  document.getElementById('clusterTable').querySelector('thead').addEventListener('click', function(e) {
+    var th = e.target.closest('th');
+    if (!th) return;
+    var col = th.getAttribute('data-sort');
+    var type = th.getAttribute('data-type');
+    if (!col) return;
+
+    // Toggle direction
+    if (currentSort.col === col) {
+      currentSort.asc = !currentSort.asc;
+    } else {
+      currentSort.col = col;
+      currentSort.asc = true;
+    }
+
+    // Remove sort classes from all headers
+    var allThs = document.querySelectorAll('#clusterTable th');
+    allThs.forEach(function(h) { h.classList.remove('sorted-asc', 'sorted-desc'); });
+    th.classList.add(currentSort.asc ? 'sorted-asc' : 'sorted-desc');
+
+    // Sort
+    var sorted = clusterData.slice().sort(function(a, b) {
+      var va = a[col], vb = b[col];
+      if (type === 'string') {
+        va = va.toLowerCase();
+        vb = vb.toLowerCase();
+        if (va < vb) return currentSort.asc ? -1 : 1;
+        if (va > vb) return currentSort.asc ? 1 : -1;
+        return 0;
+      } else {
+        return currentSort.asc ? (va - vb) : (vb - va);
+      }
+    });
+
+    renderTable(sorted);
+  });
+
+  // ===== SECTION 5: METHODOLOGY TOGGLE =====
+  var toggleBtn = document.getElementById('methodologyToggle');
+  var toggleContent = document.getElementById('methodologyContent');
+
+  toggleBtn.addEventListener('click', function() {
+    var isOpen = toggleContent.classList.contains('open');
+    toggleContent.classList.toggle('open');
+    toggleBtn.classList.toggle('open');
+    toggleBtn.setAttribute('aria-expanded', !isOpen);
+  });
+
+  // ===== ANIMATE DISPARITY BARS ON SCROLL =====
+  var barsAnimated = false;
+  function animateBars() {
+    if (barsAnimated) return;
+    var bars = document.querySelectorAll('.disparity-bar-fill');
+    var trigger = document.querySelector('.symmetry-grid');
+    if (!trigger) return;
+    var rect = trigger.getBoundingClientRect();
+    if (rect.top < window.innerHeight * 0.85) {
+      barsAnimated = true;
+      // bars already have their widths set inline; force reflow animation
+      bars.forEach(function(bar) {
+        var target = bar.style.width;
+        bar.style.width = '0%';
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            bar.style.width = target;
+          });
+        });
+      });
+    }
+  }
+
+  window.addEventListener('scroll', animateBars, { passive: true });
+  // Also trigger on load
+  setTimeout(animateBars, 500);
+
+})();
+</script>
+
+</body>
+</html>
