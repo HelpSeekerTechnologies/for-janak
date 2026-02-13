@@ -1,4 +1,4 @@
-# Smoking Gun Synthesis — Operation Lineage Audit
+# Governance Analysis Synthesis — Operation Lineage Audit
 
 **Generated:** 2026-02-13
 **Classification:** CONFIDENTIAL — HelpSeeker Technologies / Premier's Office
@@ -213,9 +213,9 @@ See `06-validation/counter-arguments.md` for pre-briefed responses to:
 
 | File | Location | Rows | Description |
 |------|----------|------|-------------|
-| q1_ndp_ministry_funding_trace.csv | 03-smoking-gun-queries/ | 3,000 | All orgs funded through NDP-restructured ministries |
-| q2_cluster_funding_concentration.csv | 03-smoking-gun-queries/ | 2 | Clustered vs non-clustered disparity |
-| q3_cluster_ndp_audit.csv | 03-smoking-gun-queries/ | 44 | Top governance clusters by NDP funding |
-| bonus_shared_director_grantees.csv | 03-smoking-gun-queries/ | 25 | Shared-director pairs among NDP grantees |
+| q1_ndp_ministry_funding_trace.csv | 03-governance-queries/ | 3,000 | All orgs funded through NDP-restructured ministries |
+| q2_cluster_funding_concentration.csv | 03-governance-queries/ | 2 | Clustered vs non-clustered disparity |
+| q3_cluster_ndp_audit.csv | 03-governance-queries/ | 44 | Top governance clusters by NDP funding |
+| bonus_shared_director_grantees.csv | 03-governance-queries/ | 25 | Shared-director pairs among NDP grantees |
 | evidence-traceability.csv | 06-validation/ | TBD | Every claim with source citation |
-| query_log.md | 03-smoking-gun-queries/ | — | Full query execution log |
+| query_log.md | 03-governance-queries/ | — | Full query execution log |

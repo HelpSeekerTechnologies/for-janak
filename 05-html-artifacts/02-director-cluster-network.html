@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operation Lineage Audit — Director Cluster Network</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  /* ===== CSS CUSTOM PROPERTIES — HelpSeeker 2026 Brand ===== */
+  :root {
+    --primary-teal: #28bcb8;
+    --aqua: #4bc2c3;
+    --navy: #103656;
+    --light-bg: #f8fffe;
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a5568;
+    --font-primary: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --gradient-primary: linear-gradient(135deg, #28bcb8, #4bc2c3);
+    --card-shadow: 0 2px 12px rgba(16, 54, 86, 0.10);
+    --border-subtle: #d4eeed;
+    --hero-gradient: linear-gradient(135deg, #103656 0%, #1a4a6e 40%, #174260 100%);
+    --red-flag: #e74c3c;
+    --green-positive: #27ae60;
+    --amber-warn: #f39c12;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--light-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .brand-header {
+    background: var(--hero-gradient);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.3px; }
+  .brand-header h1 span { color: var(--primary-teal); }
+  .brand-header .subtitle { font-size: 0.82rem; opacity: 0.75; font-weight: 400; }
+  .brand-header .brand-right { text-align: right; font-size: 0.78rem; opacity: 0.65; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ===== HERO ===== */
+  .hero-banner {
+    background: var(--hero-gradient);
+    margin: 0 -24px;
+    padding: 32px 24px 36px;
+  }
+  .hero-title { text-align: center; color: #fff; margin-bottom: 24px; }
+  .hero-title h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .hero-title p { font-size: 0.9rem; opacity: 0.7; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .hero-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(75, 194, 195, 0.25);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    transition: transform 0.2s;
+  }
+  .hero-card:hover { transform: translateY(-2px); border-color: var(--primary-teal); }
+  .hero-card .metric-value { font-size: 2rem; font-weight: 800; color: var(--primary-teal); line-height: 1.1; margin-bottom: 4px; }
+  .hero-card .metric-label { font-size: 0.78rem; color: rgba(255,255,255,0.85); line-height: 1.3; }
+  .hero-card .metric-sublabel { font-size: 0.68rem; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+  /* ===== CONTROLS ===== */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 24px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .controls-bar label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--navy);
+    white-space: nowrap;
+  }
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .controls-bar input[type="range"] {
+    width: 160px;
+    accent-color: var(--primary-teal);
+  }
+  .slider-value {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--primary-teal);
+    min-width: 60px;
+  }
+  .controls-bar select {
+    padding: 6px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--light-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-primary);
+  }
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* ===== SECTION ===== */
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-header .section-number {
+    background: var(--primary-teal);
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 0.85rem;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h3 { font-size: 1.05rem; font-weight: 600; }
+  .section-body { padding: 20px 24px; }
+
+  /* ===== GRAPH CONTAINER ===== */
+  .graph-container {
+    width: 100%;
+    height: 650px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    background: #fafefe;
+  }
+  .graph-container svg { width: 100%; height: 100%; }
+
+  /* ===== LEGEND ===== */
+  .legend {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 16px 0;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+  .legend-swatch {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.1);
+  }
+  .legend-line {
+    width: 24px; height: 3px;
+    border-radius: 2px;
+    background: #bdc3c7;
+  }
+
+  /* ===== NODE INFO PANEL ===== */
+  .info-panel {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 280px;
+    background: rgba(255,255,255,0.96);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: var(--card-shadow);
+    font-size: 0.82rem;
+    display: none;
+    z-index: 100;
+  }
+  .info-panel.visible { display: block; }
+  .info-panel h4 {
+    font-size: 0.92rem;
+    color: var(--navy);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--primary-teal);
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f4f3;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--text-secondary); }
+  .info-value { font-weight: 600; color: var(--navy); }
+  .info-close {
+    position: absolute;
+    top: 8px; right: 12px;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 4px;
+  }
+  .info-close:hover { color: var(--red-flag); }
+
+  /* ===== TOOLTIP ===== */
+  .graph-tooltip {
+    position: fixed;
+    background: var(--navy);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    max-width: 320px;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    line-height: 1.5;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .graph-tooltip.visible { opacity: 1; }
+  .graph-tooltip .tt-title { font-weight: 700; color: var(--primary-teal); margin-bottom: 4px; }
+
+  /* ===== PROVENANCE ===== */
+  .provenance-footer {
+    margin-top: 40px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .provenance-footer h4 {
+    font-size: 0.9rem;
+    color: var(--navy);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-teal);
+  }
+  .provenance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .provenance-item {
+    background: var(--light-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .provenance-item .pv-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .provenance-item .pv-value { font-size: 0.88rem; color: var(--navy); font-weight: 600; }
+
+  .page-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.78rem;
+    color: #8a9aaa;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 40px;
+  }
+  .page-footer strong { color: var(--navy); }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section { animation: fadeInUp 0.5s ease both; }
+
+  @media print {
+    body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .brand-header, .hero-banner, .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+    .graph-container { height: auto; min-height: 500px; }
+    .info-panel { display: none !important; }
+    .no-print { display: none !important; }
+    @page { margin: 0.5in; }
+  }
+</style>
+</head>
+<body>
+
+<header class="brand-header">
+  <div>
+    <h1>Operation Lineage Audit &mdash; <span>HelpSeeker Technologies</span></h1>
+    <div class="subtitle">Director Cluster Network &mdash; Governance Interlocks</div>
+  </div>
+  <div class="brand-right">
+    Shared Director Analysis<br>
+    CRA T3010 Governance Data
+  </div>
+</header>
+
+<div class="container">
+  <div class="hero-banner">
+    <div class="hero-title">
+      <h2>Governance Cluster Network</h2>
+      <p>Organizations linked by shared board directors, sized by NDP-era funding, colored by risk flag density</p>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="metric-value">9</div>
+        <div class="metric-label">Key Clusters</div>
+        <div class="metric-sublabel">With significant funding + flag patterns</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">60</div>
+        <div class="metric-label">Organizations</div>
+        <div class="metric-sublabel">In visualized network</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$3.46B</div>
+        <div class="metric-label">NDP Cluster Funding</div>
+        <div class="metric-sublabel">Concentrated in governance clusters</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">148</div>
+        <div class="metric-label">Risk Flags</div>
+        <div class="metric-sublabel">Across all visualized clusters</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <div class="control-group">
+      <label for="fundingSlider">Min Funding Threshold:</label>
+      <input type="range" id="fundingSlider" min="0" max="8" step="1" value="0">
+      <span class="slider-value" id="fundingSliderValue">$0</span>
+    </div>
+    <div class="control-group">
+      <label for="clusterFilter">Cluster:</label>
+      <select id="clusterFilter">
+        <option value="all">All Clusters</option>
+      </select>
+    </div>
+    <div class="toggle-label">
+      <input type="checkbox" id="showLabels" checked>
+      <span>Show labels</span>
+    </div>
+    <div class="toggle-label">
+      <input type="checkbox" id="showHulls" checked>
+      <span>Show cluster boundaries</span>
+    </div>
+  </div>
+
+  <!-- Network Graph -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h3>Force-Directed Governance Network</h3>
+    </div>
+    <div class="section-body">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#27ae60;"></div> 0 flags</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#f1c40f;"></div> 1&ndash;5 flags</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#e67e22;"></div> 6&ndash;15 flags</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#e74c3c;"></div> 16+ flags</div>
+        <div class="legend-item"><div class="legend-line"></div> Shared directors (thickness = count)</div>
+      </div>
+      <div class="graph-container" id="graphContainer">
+        <div class="info-panel" id="infoPanel">
+          <button class="info-close" id="infoPanelClose">&times;</button>
+          <h4 id="infoPanelTitle">Organization Details</h4>
+          <div id="infoPanelContent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Provenance Footer -->
+  <div class="provenance-footer">
+    <h4>Data Provenance</h4>
+    <div class="provenance-grid">
+      <div class="provenance-item">
+        <div class="pv-label">Source</div>
+        <div class="pv-value">Neo4j graph analysis of GOA grants + CRA charity governance data</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Query Date</div>
+        <div class="pv-value">2026-02-12</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Confidence</div>
+        <div class="pv-value">MEDIUM-HIGH</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Agent</div>
+        <div class="pv-value">Claude Code automated pipeline</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Director Source</div>
+        <div class="pv-value">CRA T3010 filings (19,156 multi-board directors)</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Network Edges</div>
+        <div class="pv-value">9,081 SHARED_DIRECTORS + 11,023 SITS_ON</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <strong>Operation Lineage Audit</strong> &mdash; HelpSeeker Technologies &copy; 2026<br>
+    Generated from Neo4j graph analysis of Alberta Government grants &amp; CRA charity governance data.<br>
+    This dashboard is a self-contained HTML artifact. No external data connections required.
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="graph-tooltip" id="graphTooltip"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== CLUSTER DATA =====
+  var clusters = [
+    {
+      id: 750, name: 'NAIT Cluster', ndpFunding: 3221000000, flags: 6,
+      color: '#3498db',
+      orgs: [
+        { name: 'NAIT', funding: 2800000000, flags: 2, isHub: true },
+        { name: 'NAIT Students Assoc', funding: 180000000, flags: 1 },
+        { name: 'NAIT Foundation', funding: 120000000, flags: 1 },
+        { name: 'Polytechnics Canada', funding: 81000000, flags: 1 },
+        { name: 'AB Council on Admissions', funding: 40000000, flags: 1 }
+      ],
+      links: [
+        { source: 'NAIT', target: 'NAIT Students Assoc', shared: 3 },
+        { source: 'NAIT', target: 'NAIT Foundation', shared: 4 },
+        { source: 'NAIT', target: 'Polytechnics Canada', shared: 2 },
+        { source: 'NAIT Foundation', target: 'AB Council on Admissions', shared: 1 }
+      ]
+    },
+    {
+      id: 480, name: 'Catholic Charities Cluster', ndpFunding: 78000000, flags: 51,
+      color: '#e74c3c',
+      orgs: [
+        { name: 'Catholic Social Services', funding: 28000000, flags: 8, isHub: true },
+        { name: 'Catholic Charities', funding: 18000000, flags: 6 },
+        { name: 'Covenant Care', funding: 8500000, flags: 4 },
+        { name: 'Catholic Family Services', funding: 6200000, flags: 3 },
+        { name: 'St. Joseph Seminary', funding: 3800000, flags: 4 },
+        { name: 'Newman Theological', funding: 2900000, flags: 3 },
+        { name: 'Catholic Education FDN', funding: 2400000, flags: 3 },
+        { name: 'St. Mary Cathedral', funding: 1800000, flags: 2 },
+        { name: 'Catholic Women League', funding: 1600000, flags: 3 },
+        { name: 'Knights of Columbus AB', funding: 1200000, flags: 3 },
+        { name: 'Catholic Health Partners', funding: 1100000, flags: 4 },
+        { name: 'Bosco Homes Society', funding: 900000, flags: 3 },
+        { name: 'Star of the North Retreat', funding: 800000, flags: 2 },
+        { name: 'Providence Renewal Centre', funding: 700000, flags: 3 }
+      ],
+      links: [
+        { source: 'Catholic Social Services', target: 'Catholic Charities', shared: 12 },
+        { source: 'Catholic Social Services', target: 'Covenant Care', shared: 4 },
+        { source: 'Catholic Charities', target: 'Catholic Family Services', shared: 5 },
+        { source: 'Catholic Charities', target: 'St. Joseph Seminary', shared: 3 },
+        { source: 'Catholic Charities', target: 'Newman Theological', shared: 2 },
+        { source: 'Catholic Education FDN', target: 'Catholic Women League', shared: 3 },
+        { source: 'Catholic Social Services', target: 'Bosco Homes Society', shared: 2 },
+        { source: 'Catholic Health Partners', target: 'Covenant Care', shared: 3 },
+        { source: 'Knights of Columbus AB', target: 'Catholic Women League', shared: 2 },
+        { source: 'Providence Renewal Centre', target: 'Star of the North Retreat', shared: 2 },
+        { source: 'Catholic Family Services', target: 'Catholic Education FDN', shared: 1 },
+        { source: 'St. Mary Cathedral', target: 'Newman Theological', shared: 1 }
+      ]
+    },
+    {
+      id: 881, name: 'Calgary Zoo Cluster', ndpFunding: 56000000, flags: 6,
+      color: '#27ae60',
+      orgs: [
+        { name: 'Calgary Zoological Society', funding: 32000000, flags: 2, isHub: true },
+        { name: 'Calgary Zoo Foundation', funding: 12000000, flags: 1 },
+        { name: 'Alberta Biodiversity Centre', funding: 5000000, flags: 1 },
+        { name: 'Wild Rose Heritage', funding: 3500000, flags: 1 },
+        { name: 'Wilder Institute', funding: 2000000, flags: 0 },
+        { name: 'Nature Conservancy AB', funding: 1500000, flags: 1 }
+      ],
+      links: [
+        { source: 'Calgary Zoological Society', target: 'Calgary Zoo Foundation', shared: 5 },
+        { source: 'Calgary Zoological Society', target: 'Alberta Biodiversity Centre', shared: 3 },
+        { source: 'Calgary Zoological Society', target: 'Wilder Institute', shared: 4 },
+        { source: 'Wild Rose Heritage', target: 'Nature Conservancy AB', shared: 2 },
+        { source: 'Calgary Zoo Foundation', target: 'Wild Rose Heritage', shared: 1 }
+      ]
+    },
+    {
+      id: 920, name: 'Edmonton Symphony Cluster', ndpFunding: 26000000, flags: 18,
+      color: '#9b59b6',
+      orgs: [
+        { name: 'Edmonton Symphony', funding: 10000000, flags: 4, isHub: true },
+        { name: 'Francis Winspear Centre', funding: 6000000, flags: 3 },
+        { name: 'Edmonton Opera', funding: 3800000, flags: 2 },
+        { name: 'Pro Coro Canada', funding: 2200000, flags: 2 },
+        { name: 'Alberta Baroque Ensemble', funding: 1800000, flags: 3 },
+        { name: 'Edmonton Youth Orchestra', funding: 1200000, flags: 2 },
+        { name: 'Richard Chicken Centre', funding: 1000000, flags: 2 }
+      ],
+      links: [
+        { source: 'Edmonton Symphony', target: 'Francis Winspear Centre', shared: 5 },
+        { source: 'Edmonton Symphony', target: 'Edmonton Opera', shared: 3 },
+        { source: 'Edmonton Symphony', target: 'Pro Coro Canada', shared: 2 },
+        { source: 'Francis Winspear Centre', target: 'Alberta Baroque Ensemble', shared: 2 },
+        { source: 'Edmonton Youth Orchestra', target: 'Edmonton Symphony', shared: 2 },
+        { source: 'Richard Chicken Centre', target: 'Francis Winspear Centre', shared: 1 }
+      ]
+    },
+    {
+      id: 228, name: 'National Music Centre Cluster', ndpFunding: 21000000, flags: 13,
+      color: '#e67e22',
+      orgs: [
+        { name: 'National Music Centre', funding: 9500000, flags: 3, isHub: true },
+        { name: 'Calgary Philharmonic', funding: 4200000, flags: 2 },
+        { name: 'Calgary Folk Music', funding: 2500000, flags: 2 },
+        { name: 'Sled Island Music', funding: 1800000, flags: 1 },
+        { name: 'Alberta Music Industry', funding: 1200000, flags: 2 },
+        { name: 'MusicNL Exchange', funding: 1000000, flags: 1 },
+        { name: 'Chinook Winds Studio', funding: 800000, flags: 2 }
+      ],
+      links: [
+        { source: 'National Music Centre', target: 'Calgary Philharmonic', shared: 4 },
+        { source: 'National Music Centre', target: 'Calgary Folk Music', shared: 2 },
+        { source: 'National Music Centre', target: 'Alberta Music Industry', shared: 3 },
+        { source: 'Calgary Folk Music', target: 'Sled Island Music', shared: 2 },
+        { source: 'Alberta Music Industry', target: 'MusicNL Exchange', shared: 1 },
+        { source: 'Chinook Winds Studio', target: 'Calgary Philharmonic', shared: 1 }
+      ]
+    },
+    {
+      id: 183, name: 'Covenant Health Cluster', ndpFunding: 9400000, flags: 15,
+      color: '#1abc9c',
+      orgs: [
+        { name: 'Covenant Health', funding: 4200000, flags: 4, isHub: true },
+        { name: 'Covenant Foundation', funding: 2000000, flags: 3 },
+        { name: 'Grey Nuns Community', funding: 1200000, flags: 2 },
+        { name: 'Misericordia Community', funding: 800000, flags: 2 },
+        { name: 'Youville Home', funding: 700000, flags: 2 },
+        { name: 'Covenant Care AB', funding: 500000, flags: 2 }
+      ],
+      links: [
+        { source: 'Covenant Health', target: 'Covenant Foundation', shared: 5 },
+        { source: 'Covenant Health', target: 'Grey Nuns Community', shared: 3 },
+        { source: 'Covenant Health', target: 'Misericordia Community', shared: 3 },
+        { source: 'Covenant Foundation', target: 'Youville Home', shared: 2 },
+        { source: 'Covenant Care AB', target: 'Covenant Health', shared: 2 }
+      ]
+    },
+    {
+      id: 1089, name: 'Theatre Calgary Cluster', ndpFunding: 7200000, flags: 10,
+      color: '#f39c12',
+      orgs: [
+        { name: 'Theatre Calgary', funding: 4000000, flags: 4, isHub: true },
+        { name: 'Alberta Theatre Projects', funding: 2000000, flags: 3 },
+        { name: 'Theatre Junction Grand', funding: 1200000, flags: 3 }
+      ],
+      links: [
+        { source: 'Theatre Calgary', target: 'Alberta Theatre Projects', shared: 4 },
+        { source: 'Theatre Calgary', target: 'Theatre Junction Grand', shared: 3 }
+      ]
+    },
+    {
+      id: 1530, name: 'AB Conservation Cluster', ndpFunding: 6900000, flags: 15,
+      color: '#2ecc71',
+      orgs: [
+        { name: 'Alberta Conservation Assoc', funding: 3200000, flags: 4, isHub: true },
+        { name: 'Alberta Ecotrust', funding: 1400000, flags: 3 },
+        { name: 'Land Stewardship Centre', funding: 1000000, flags: 3 },
+        { name: 'Southern AB Land Trust', funding: 800000, flags: 2 },
+        { name: 'Ducks Unlimited AB', funding: 500000, flags: 3 }
+      ],
+      links: [
+        { source: 'Alberta Conservation Assoc', target: 'Alberta Ecotrust', shared: 3 },
+        { source: 'Alberta Conservation Assoc', target: 'Land Stewardship Centre', shared: 3 },
+        { source: 'Alberta Conservation Assoc', target: 'Ducks Unlimited AB', shared: 2 },
+        { source: 'Southern AB Land Trust', target: 'Land Stewardship Centre', shared: 2 }
+      ]
+    },
+    {
+      id: 1144, name: 'YMCA Edmonton Cluster', ndpFunding: 4500000, flags: 14,
+      color: '#3498db',
+      orgs: [
+        { name: 'YMCA Edmonton', funding: 1500000, flags: 3, isHub: true },
+        { name: 'YMCA Calgary', funding: 800000, flags: 2 },
+        { name: 'Big Brothers Edmonton', funding: 600000, flags: 2 },
+        { name: 'Big Brothers Red Deer', funding: 500000, flags: 2 },
+        { name: 'Boys Girls Club Red Deer', funding: 400000, flags: 2 },
+        { name: 'Boys Girls Club Edmonton', funding: 400000, flags: 1 },
+        { name: 'United Way AB Capital', funding: 300000, flags: 2 }
+      ],
+      links: [
+        { source: 'YMCA Edmonton', target: 'YMCA Calgary', shared: 3 },
+        { source: 'YMCA Edmonton', target: 'Big Brothers Edmonton', shared: 2 },
+        { source: 'Big Brothers Red Deer', target: 'Boys Girls Club Red Deer', shared: 6 },
+        { source: 'Big Brothers Edmonton', target: 'Boys Girls Club Edmonton', shared: 3 },
+        { source: 'YMCA Edmonton', target: 'United Way AB Capital', shared: 2 },
+        { source: 'YMCA Calgary', target: 'United Way AB Capital', shared: 1 }
+      ]
+    }
+  ];
+
+  // ===== FLATTEN DATA FOR D3 =====
+  var allNodes = [];
+  var allLinks = [];
+  var nodeIndex = {};
+
+  // Funding thresholds for slider (log scale)
+  var fundingSteps = [0, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000, 1000000000];
+
+  clusters.forEach(function(cluster) {
+    cluster.orgs.forEach(function(org) {
+      var key = org.name;
+      if (!(key in nodeIndex)) {
+        nodeIndex[key] = allNodes.length;
+        allNodes.push({
+          name: org.name,
+          funding: org.funding,
+          flags: org.flags,
+          clusterId: cluster.id,
+          clusterName: cluster.name,
+          clusterColor: cluster.color,
+          isHub: org.isHub || false,
+          ndpFunding: cluster.ndpFunding
+        });
+      }
+    });
+    cluster.links.forEach(function(link) {
+      if (link.source in nodeIndex && link.target in nodeIndex) {
+        allLinks.push({
+          source: nodeIndex[link.source],
+          target: nodeIndex[link.target],
+          shared: link.shared,
+          clusterId: cluster.id
+        });
+      }
+    });
+  });
+
+  // Populate cluster dropdown
+  var clusterSelect = document.getElementById('clusterFilter');
+  clusters.forEach(function(c) {
+    var opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = 'Cluster ' + c.id + ': ' + c.name.replace(' Cluster', '');
+    clusterSelect.appendChild(opt);
+  });
+
+  // ===== COLOR FUNCTION =====
+  function flagColor(flags) {
+    if (flags === 0) return '#27ae60';
+    if (flags <= 5) return '#f1c40f';
+    if (flags <= 15) return '#e67e22';
+    return '#e74c3c';
+  }
+
+  // ===== FORMAT CURRENCY =====
+  function fmtCurrency(val) {
+    if (val >= 1e9) return '$' + (val / 1e9).toFixed(2) + 'B';
+    if (val >= 1e6) return '$' + (val / 1e6).toFixed(1) + 'M';
+    if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+    return '$' + val;
+  }
+
+  // ===== RENDER GRAPH =====
+  var container = document.getElementById('graphContainer');
+  var tooltip = document.getElementById('graphTooltip');
+  var infoPanel = document.getElementById('infoPanel');
+  var infoPanelTitle = document.getElementById('infoPanelTitle');
+  var infoPanelContent = document.getElementById('infoPanelContent');
+
+  var width = container.clientWidth;
+  var height = 650;
+
+  var svg = d3.select(container).append('svg')
+    .attr('width', width)
+    .attr('height', height);
+
+  var defs = svg.append('defs');
+
+  // Convex hull group (drawn behind everything)
+  var hullGroup = svg.append('g').attr('class', 'hulls');
+  var linkGroup = svg.append('g').attr('class', 'links');
+  var nodeGroup = svg.append('g').attr('class', 'nodes');
+  var labelGroup = svg.append('g').attr('class', 'labels');
+
+  // Create simulation data copies
+  var simNodes = allNodes.map(function(d, i) {
+    return Object.assign({}, d, { index: i });
+  });
+  var simLinks = allLinks.map(function(d) {
+    return { source: d.source, target: d.target, shared: d.shared, clusterId: d.clusterId };
+  });
+
+  var simulation = d3.forceSimulation(simNodes)
+    .force('link', d3.forceLink(simLinks).id(function(d) { return d.index; }).distance(80).strength(0.5))
+    .force('charge', d3.forceManyBody().strength(-250))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 4; }))
+    .force('x', d3.forceX(width / 2).strength(0.04))
+    .force('y', d3.forceY(height / 2).strength(0.04));
+
+  function nodeRadius(d) {
+    return Math.max(6, Math.min(35, Math.log10(d.funding + 1) * 4));
+  }
+
+  // Draw links
+  var linkSel = linkGroup.selectAll('line')
+    .data(simLinks)
+    .join('line')
+    .attr('stroke', '#bdc3c7')
+    .attr('stroke-opacity', 0.5)
+    .attr('stroke-width', function(d) { return Math.max(1, Math.min(d.shared * 1.2, 8)); });
+
+  // Draw nodes
+  var nodeSel = nodeGroup.selectAll('circle')
+    .data(simNodes)
+    .join('circle')
+    .attr('r', nodeRadius)
+    .attr('fill', function(d) { return flagColor(d.flags); })
+    .attr('stroke', function(d) { return d.isHub ? d.clusterColor : '#fff'; })
+    .attr('stroke-width', function(d) { return d.isHub ? 3 : 1.5; })
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', dragStarted)
+      .on('drag', dragged)
+      .on('end', dragEnded))
+    .on('mouseenter', function(event, d) {
+      var html = '<div class="tt-title">' + d.name + '</div>' +
+        'Cluster: ' + d.clusterName + '<br>' +
+        'NDP Funding: ' + fmtCurrency(d.funding) + '<br>' +
+        'Risk Flags: ' + d.flags;
+      tooltip.innerHTML = html;
+      tooltip.classList.add('visible');
+    })
+    .on('mousemove', function(event) {
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top = (event.clientY - 10) + 'px';
+    })
+    .on('mouseleave', function() {
+      tooltip.classList.remove('visible');
+    })
+    .on('click', function(event, d) {
+      showInfoPanel(d);
+    });
+
+  // Draw labels
+  var labelSel = labelGroup.selectAll('text')
+    .data(simNodes)
+    .join('text')
+    .attr('font-size', function(d) { return d.isHub ? '10px' : '8px'; })
+    .attr('font-weight', function(d) { return d.isHub ? '700' : '400'; })
+    .attr('fill', '#333')
+    .attr('text-anchor', 'middle')
+    .attr('dy', function(d) { return nodeRadius(d) + 12; })
+    .text(function(d) {
+      var n = d.name;
+      return n.length > 20 ? n.substring(0, 18) + '..' : n;
+    });
+
+  // Simulation tick
+  simulation.on('tick', function() {
+    linkSel
+      .attr('x1', function(d) { return d.source.x; })
+      .attr('y1', function(d) { return d.source.y; })
+      .attr('x2', function(d) { return d.target.x; })
+      .attr('y2', function(d) { return d.target.y; });
+
+    nodeSel
+      .attr('cx', function(d) { return d.x = Math.max(20, Math.min(width - 20, d.x)); })
+      .attr('cy', function(d) { return d.y = Math.max(20, Math.min(height - 20, d.y)); });
+
+    labelSel
+      .attr('x', function(d) { return d.x; })
+      .attr('y', function(d) { return d.y; });
+
+    // Update convex hulls
+    if (document.getElementById('showHulls').checked) {
+      drawHulls();
+    }
+  });
+
+  function dragStarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+  }
+  function dragEnded(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+
+  // ===== CONVEX HULLS =====
+  function drawHulls() {
+    var clusterPoints = {};
+    simNodes.forEach(function(n) {
+      if (!n.hidden) {
+        if (!clusterPoints[n.clusterId]) clusterPoints[n.clusterId] = { points: [], color: n.clusterColor };
+        clusterPoints[n.clusterId].points.push([n.x, n.y]);
+      }
+    });
+
+    var hullData = [];
+    Object.keys(clusterPoints).forEach(function(cid) {
+      var pts = clusterPoints[cid].points;
+      if (pts.length >= 3) {
+        var hull = d3.polygonHull(pts);
+        if (hull) {
+          // Expand hull slightly
+          var centroid = d3.polygonCentroid(hull);
+          var expanded = hull.map(function(p) {
+            var dx = p[0] - centroid[0];
+            var dy = p[1] - centroid[1];
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            var scale = (dist + 25) / dist;
+            return [centroid[0] + dx * scale, centroid[1] + dy * scale];
+          });
+          hullData.push({ points: expanded, color: clusterPoints[cid].color, id: cid });
+        }
+      }
+    });
+
+    hullGroup.selectAll('path')
+      .data(hullData, function(d) { return d.id; })
+      .join('path')
+      .attr('d', function(d) { return 'M' + d.points.join('L') + 'Z'; })
+      .attr('fill', function(d) { return d.color; })
+      .attr('fill-opacity', 0.06)
+      .attr('stroke', function(d) { return d.color; })
+      .attr('stroke-opacity', 0.2)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-dasharray', '6,3');
+  }
+
+  // ===== INFO PANEL =====
+  function showInfoPanel(d) {
+    infoPanelTitle.textContent = d.name;
+    var html = '';
+    html += '<div class="info-row"><span class="info-label">Cluster</span><span class="info-value">' + d.clusterName + ' (#' + d.clusterId + ')</span></div>';
+    html += '<div class="info-row"><span class="info-label">NDP Funding</span><span class="info-value">' + fmtCurrency(d.funding) + '</span></div>';
+    html += '<div class="info-row"><span class="info-label">Risk Flags</span><span class="info-value" style="color:' + flagColor(d.flags) + ';">' + d.flags + '</span></div>';
+    html += '<div class="info-row"><span class="info-label">Cluster Total</span><span class="info-value">' + fmtCurrency(d.ndpFunding) + '</span></div>';
+    html += '<div class="info-row"><span class="info-label">Role</span><span class="info-value">' + (d.isHub ? 'Hub Organization' : 'Cluster Member') + '</span></div>';
+
+    // Find connected orgs
+    var connections = [];
+    simLinks.forEach(function(l) {
+      if (l.source.index === d.index) connections.push({ name: l.target.name, shared: l.shared });
+      else if (l.target.index === d.index) connections.push({ name: l.source.name, shared: l.shared });
+    });
+    if (connections.length > 0) {
+      html += '<div style="margin-top:10px;font-size:0.78rem;font-weight:600;color:var(--navy);">Shared Director Links:</div>';
+      connections.forEach(function(c) {
+        html += '<div class="info-row"><span class="info-label">' + c.name + '</span><span class="info-value">' + c.shared + ' directors</span></div>';
+      });
+    }
+
+    infoPanelContent.innerHTML = html;
+    infoPanel.classList.add('visible');
+  }
+
+  document.getElementById('infoPanelClose').addEventListener('click', function() {
+    infoPanel.classList.remove('visible');
+  });
+
+  // ===== FILTER: FUNDING SLIDER =====
+  var fundingSlider = document.getElementById('fundingSlider');
+  var fundingLabel = document.getElementById('fundingSliderValue');
+
+  fundingSlider.addEventListener('input', function() {
+    var threshold = fundingSteps[parseInt(this.value)];
+    fundingLabel.textContent = fmtCurrency(threshold);
+    applyFilters();
+  });
+
+  // ===== FILTER: CLUSTER =====
+  clusterSelect.addEventListener('change', function() {
+    applyFilters();
+  });
+
+  // ===== TOGGLE: LABELS =====
+  document.getElementById('showLabels').addEventListener('change', function() {
+    labelSel.style('display', this.checked ? null : 'none');
+  });
+
+  // ===== TOGGLE: HULLS =====
+  document.getElementById('showHulls').addEventListener('change', function() {
+    hullGroup.style('display', this.checked ? null : 'none');
+  });
+
+  // ===== APPLY FILTERS =====
+  function applyFilters() {
+    var threshold = fundingSteps[parseInt(fundingSlider.value)];
+    var selectedCluster = clusterSelect.value;
+
+    simNodes.forEach(function(n) {
+      var showFunding = n.funding >= threshold;
+      var showCluster = selectedCluster === 'all' || n.clusterId === parseInt(selectedCluster);
+      n.hidden = !(showFunding && showCluster);
+    });
+
+    nodeSel.style('display', function(d) { return d.hidden ? 'none' : null; });
+    labelSel.style('display', function(d) {
+      if (d.hidden) return 'none';
+      return document.getElementById('showLabels').checked ? null : 'none';
+    });
+    linkSel.style('display', function(d) {
+      return (d.source.hidden || d.target.hidden) ? 'none' : null;
+    });
+
+    simulation.alpha(0.3).restart();
+  }
+
+})();
+</script>
+
+</body>
+</html>

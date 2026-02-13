@@ -4,7 +4,7 @@
 
 Graph-based political-era analysis of Alberta ministry restructuring, grant flows, and director governance networks. Builds a unified Neo4j knowledge graph aligned to KGL v1.3 ontology to answer questions that **only a graph can answer** — specifically tracing funding through ministry lineage chains across political eras (NDP 2015-2019, UCP 2019-present) and detecting disproportionate funding concentration in governance clusters.
 
-## The Smoking Gun Question
+## The Core Governance Question
 
 "Which governance clusters (organizations sharing board directors) received disproportionate funding increases through NDP-restructured ministries compared to non-clustered organizations — and did that concentration pattern reverse under UCP?"
 
@@ -93,7 +93,7 @@ This requires multi-hop graph traversal: ministry lineage traversal + director n
 | `00-project-management/` | Workplan, decisions log, session notes | project-orchestration.skill.md |
 | `01-data-assembly/` | Political era tagging, director networks, data pulls | data-assembly.skill.md |
 | `02-graph-build/` | Neo4j schema, ingestion pipeline, Cypher DDL | graph-construction.skill.md |
-| `03-smoking-gun-queries/` | Multi-hop Cypher queries for the core question | graph-analysis.skill.md |
+| `03-governance-queries/` | Multi-hop Cypher queries for the core question | graph-analysis.skill.md |
 | `04-synthesis/` | Business analysis, "So What" chain, narratives | analysis-synthesis.skill.md |
 | `05-html-artifacts/` | Interactive HTML dashboards for demo | visualization.skill.md |
 | `06-validation/` | Fact-checking, counter-arguments, evidence matrix | validation.skill.md |

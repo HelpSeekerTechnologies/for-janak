@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operation Lineage Audit — Cluster Funding Heatmap</title>
+<style>
+  /* ===== CSS CUSTOM PROPERTIES — HelpSeeker 2026 Brand ===== */
+  :root {
+    --primary-teal: #28bcb8;
+    --aqua: #4bc2c3;
+    --navy: #103656;
+    --light-bg: #f8fffe;
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a5568;
+    --font-primary: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --gradient-primary: linear-gradient(135deg, #28bcb8, #4bc2c3);
+    --card-shadow: 0 2px 12px rgba(16, 54, 86, 0.10);
+    --border-subtle: #d4eeed;
+    --hero-gradient: linear-gradient(135deg, #103656 0%, #1a4a6e 40%, #174260 100%);
+    --red-flag: #e74c3c;
+    --green-positive: #27ae60;
+    --amber-warn: #f39c12;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--light-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .brand-header {
+    background: var(--hero-gradient);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.3px; }
+  .brand-header h1 span { color: var(--primary-teal); }
+  .brand-header .subtitle { font-size: 0.82rem; opacity: 0.75; font-weight: 400; }
+  .brand-header .brand-right { text-align: right; font-size: 0.78rem; opacity: 0.65; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ===== HERO ===== */
+  .hero-banner {
+    background: var(--hero-gradient);
+    margin: 0 -24px;
+    padding: 32px 24px 36px;
+  }
+  .hero-title { text-align: center; color: #fff; margin-bottom: 24px; }
+  .hero-title h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .hero-title p { font-size: 0.9rem; opacity: 0.7; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .hero-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(75, 194, 195, 0.25);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    transition: transform 0.2s;
+  }
+  .hero-card:hover { transform: translateY(-2px); border-color: var(--primary-teal); }
+  .hero-card .metric-value { font-size: 2rem; font-weight: 800; color: var(--primary-teal); line-height: 1.1; margin-bottom: 4px; }
+  .hero-card .metric-label { font-size: 0.78rem; color: rgba(255,255,255,0.85); line-height: 1.3; }
+  .hero-card .metric-sublabel { font-size: 0.68rem; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+  /* ===== CONTROLS ===== */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .controls-bar label { font-size: 0.85rem; font-weight: 600; color: var(--navy); }
+  .controls-bar select {
+    padding: 6px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--light-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-primary);
+  }
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* ===== SECTION ===== */
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-header .section-number {
+    background: var(--primary-teal);
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 0.85rem;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h3 { font-size: 1.05rem; font-weight: 600; }
+  .section-body { padding: 28px 24px; }
+
+  /* ===== HEATMAP TABLE ===== */
+  .heatmap-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+  }
+  table.heatmap-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+  table.heatmap-table thead th {
+    padding: 12px 16px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--border-subtle);
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+  }
+  table.heatmap-table thead th:hover {
+    background: #f0faf9;
+  }
+  table.heatmap-table thead th .sort-arrow {
+    margin-left: 4px;
+    opacity: 0.3;
+    font-size: 0.7rem;
+  }
+  table.heatmap-table thead th.sorted .sort-arrow { opacity: 1; color: var(--primary-teal); }
+
+  .era-header-pc { background: #f0f0f0; color: #7f8c8d; }
+  .era-header-ndp { background: #fef0e7; color: #d35400; }
+  .era-header-ucp-k { background: #e8f8f5; color: #1a8a7d; }
+  .era-header-ucp-s { background: #e0f5f4; color: #148f85; }
+  .era-header-change { background: #f8f4ff; color: #6c3483; }
+
+  table.heatmap-table thead th.cluster-header {
+    background: var(--navy);
+    color: #fff;
+    text-align: left;
+  }
+  table.heatmap-table thead th.org-header {
+    background: var(--navy);
+    color: #fff;
+    text-align: left;
+  }
+  table.heatmap-table thead th.size-header {
+    background: var(--navy);
+    color: #fff;
+    text-align: center;
+  }
+  table.heatmap-table thead th.flags-header {
+    background: var(--navy);
+    color: #fff;
+    text-align: center;
+  }
+
+  table.heatmap-table tbody td {
+    padding: 12px 16px;
+    text-align: center;
+    border-bottom: 1px solid #eef5f4;
+    font-weight: 600;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 100px;
+  }
+  table.heatmap-table tbody td:hover {
+    outline: 2px solid var(--primary-teal);
+    outline-offset: -2px;
+    z-index: 10;
+  }
+  table.heatmap-table tbody td.cluster-col {
+    text-align: center;
+    font-weight: 800;
+    color: var(--navy);
+    font-size: 0.88rem;
+    cursor: default;
+  }
+  table.heatmap-table tbody td.org-col {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.84rem;
+    white-space: nowrap;
+    cursor: default;
+  }
+  table.heatmap-table tbody td.size-col,
+  table.heatmap-table tbody td.flags-col {
+    font-size: 0.84rem;
+    cursor: default;
+  }
+  table.heatmap-table tbody tr:hover td {
+    background-color: rgba(40, 188, 184, 0.04) !important;
+  }
+
+  .flag-badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 28px;
+    text-align: center;
+  }
+  .flag-badge.low { background: #e8f8f0; color: #27ae60; }
+  .flag-badge.med { background: #fef0e7; color: #d35400; }
+  .flag-badge.high { background: #fde8e8; color: #e74c3c; }
+
+  .change-cell {
+    font-weight: 700 !important;
+  }
+  .change-negative { color: #e74c3c !important; }
+  .change-positive { color: #27ae60 !important; }
+  .change-neutral { color: #7f8c8d !important; }
+
+  /* ===== COLOR SCALE LEGEND ===== */
+  .color-scale {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+    justify-content: center;
+  }
+  .color-scale-label { font-size: 0.78rem; color: var(--text-secondary); }
+  .color-scale-bar {
+    width: 250px;
+    height: 16px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #ffffff, #b8ece9, #4bc2c3, #28bcb8, #1a6a68, #103656);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* ===== TOOLTIP ===== */
+  .heatmap-tooltip {
+    position: fixed;
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    max-width: 320px;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    line-height: 1.6;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .heatmap-tooltip.visible { opacity: 1; }
+  .heatmap-tooltip .tt-title { font-weight: 700; color: var(--primary-teal); margin-bottom: 4px; font-size: 0.88rem; }
+  .heatmap-tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+  .heatmap-tooltip .tt-label { opacity: 0.7; }
+  .heatmap-tooltip .tt-value { font-weight: 600; }
+
+  /* ===== CHART ANNOTATION ===== */
+  .chart-annotation {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: #f0faf9;
+    border-left: 3px solid var(--primary-teal);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.84rem;
+    color: #3a5a6e;
+    line-height: 1.5;
+  }
+
+  /* ===== PROVENANCE ===== */
+  .provenance-footer {
+    margin-top: 40px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .provenance-footer h4 {
+    font-size: 0.9rem;
+    color: var(--navy);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-teal);
+  }
+  .provenance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .provenance-item {
+    background: var(--light-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .provenance-item .pv-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .provenance-item .pv-value { font-size: 0.88rem; color: var(--navy); font-weight: 600; }
+
+  .page-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.78rem;
+    color: #8a9aaa;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 40px;
+  }
+  .page-footer strong { color: var(--navy); }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section { animation: fadeInUp 0.5s ease both; }
+  .section:nth-child(2) { animation-delay: 0.1s; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media print {
+    body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .brand-header, .hero-banner, .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+    table.heatmap-table tbody td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+    @page { margin: 0.5in; }
+  }
+</style>
+</head>
+<body>
+
+<header class="brand-header">
+  <div>
+    <h1>Operation Lineage Audit &mdash; <span>HelpSeeker Technologies</span></h1>
+    <div class="subtitle">Cluster Funding Heatmap &mdash; Political Era Comparison</div>
+  </div>
+  <div class="brand-right">
+    Governance Cluster Analysis<br>
+    4 Political Eras Compared
+  </div>
+</header>
+
+<div class="container">
+  <div class="hero-banner">
+    <div class="hero-title">
+      <h2>Cluster Funding by Political Era</h2>
+      <p>Top 15 governance clusters showing funding concentration across PC, NDP, UCP-Kenney, and UCP-Smith eras</p>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="metric-value">15</div>
+        <div class="metric-label">Top Clusters</div>
+        <div class="metric-sublabel">Sorted by NDP-era funding volume</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">4</div>
+        <div class="metric-label">Political Eras</div>
+        <div class="metric-sublabel">PC | NDP | UCP-Kenney | UCP-Smith</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$3.44B</div>
+        <div class="metric-label">Total NDP Cluster Funding</div>
+        <div class="metric-sublabel">Across top 15 clusters</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">80%</div>
+        <div class="metric-label">Decline Rate</div>
+        <div class="metric-sublabel">10 of 15 clusters saw NDP&rarr;UCP decline</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <label for="sortColumn">Sort by:</label>
+    <select id="sortColumn">
+      <option value="ndp_desc">NDP Funding (High to Low)</option>
+      <option value="ndp_asc">NDP Funding (Low to High)</option>
+      <option value="change_desc">NDP&rarr;UCP Change % (Best)</option>
+      <option value="change_asc">NDP&rarr;UCP Change % (Worst)</option>
+      <option value="flags_desc">Flags (High to Low)</option>
+      <option value="cluster_asc">Cluster ID</option>
+    </select>
+    <div class="toggle-label">
+      <input type="checkbox" id="showZeros" checked>
+      <span>Show $0 funding cells</span>
+    </div>
+    <div class="toggle-label">
+      <input type="checkbox" id="logScale" checked>
+      <span>Log color scale</span>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h3>Funding Heatmap &mdash; Governance Clusters x Political Eras</h3>
+    </div>
+    <div class="section-body">
+      <div class="color-scale">
+        <span class="color-scale-label">$0</span>
+        <div class="color-scale-bar"></div>
+        <span class="color-scale-label">$3.2B (log scale)</span>
+      </div>
+      <div class="heatmap-wrap">
+        <table class="heatmap-table" id="heatmapTable">
+          <thead>
+            <tr>
+              <th class="cluster-header">Cluster</th>
+              <th class="org-header">Key Organization</th>
+              <th class="size-header">Size</th>
+              <th class="flags-header">Flags</th>
+              <th class="era-header-pc">PC<span class="sort-arrow"> &#9650;&#9660;</span></th>
+              <th class="era-header-ndp">NDP<span class="sort-arrow"> &#9650;&#9660;</span></th>
+              <th class="era-header-ucp-k">UCP Kenney<span class="sort-arrow"> &#9650;&#9660;</span></th>
+              <th class="era-header-ucp-s">UCP Smith<span class="sort-arrow"> &#9650;&#9660;</span></th>
+              <th class="era-header-change">NDP&rarr;UCP %<span class="sort-arrow"> &#9650;&#9660;</span></th>
+            </tr>
+          </thead>
+          <tbody id="heatmapBody"></tbody>
+        </table>
+      </div>
+      <div class="chart-annotation">
+        <strong>Reading the heatmap:</strong> Each cell is colored on a logarithmic scale from white ($0) through light teal to dark navy ($3.2B max).
+        The rightmost column shows the percentage change from NDP-era to combined UCP-era funding. Red indicates decline; green indicates growth.
+        Click any funding cell for detailed breakdown.
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Findings -->
+  <div class="section" style="animation-delay: 0.15s;">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h3>Key Findings &mdash; Era Transition Patterns</h3>
+    </div>
+    <div class="section-body">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div style="background:#fde8e8; border-radius:10px; padding:20px; border:1px solid #f5b7b1;">
+          <h4 style="color:#c0392b; margin-bottom:10px; font-size:0.95rem;">Clusters with Complete NDP&rarr;UCP Cutoff</h4>
+          <ul style="margin-left:18px; font-size:0.84rem; color:#5a2d2d; line-height:1.8;">
+            <li><strong>Edmonton Symphony (#920)</strong> &mdash; $26M NDP &rarr; $0 UCP</li>
+            <li><strong>National Music Centre (#228)</strong> &mdash; $21M NDP &rarr; $0 UCP</li>
+            <li><strong>Covenant Health (#183)</strong> &mdash; $9.4M NDP &rarr; $0 UCP</li>
+            <li><strong>Theatre Calgary (#1089)</strong> &mdash; $7.2M NDP &rarr; $0 UCP</li>
+            <li><strong>YMCA Edmonton (#1144)</strong> &mdash; $4.5M NDP &rarr; $0 UCP</li>
+            <li><strong>Heritage Park (#956)</strong> &mdash; $2.4M NDP &rarr; $0 UCP</li>
+            <li><strong>One Yellow Rabbit (#1167)</strong> &mdash; $1.1M NDP &rarr; $0 UCP</li>
+          </ul>
+        </div>
+        <div style="background:#e8f8f0; border-radius:10px; padding:20px; border:1px solid #a9dfbf;">
+          <h4 style="color:#1e8449; margin-bottom:10px; font-size:0.95rem;">Clusters with Sustained or Growing UCP Funding</h4>
+          <ul style="margin-left:18px; font-size:0.84rem; color:#1a5a2a; line-height:1.8;">
+            <li><strong>NAIT (#750)</strong> &mdash; $3.22B NDP &rarr; continued high UCP</li>
+            <li><strong>Catholic Charities (#480)</strong> &mdash; $78M NDP &rarr; $17M UCP (partial)</li>
+            <li><strong>Burman University (#20)</strong> &mdash; $11M NDP &rarr; $17M UCP (+51%)</li>
+            <li><strong>AB Conservation (#1530)</strong> &mdash; $6.9M NDP &rarr; $2.6M UCP (partial)</li>
+            <li><strong>Inclusion Alberta (#138)</strong> &mdash; $3.7M NDP &rarr; $1M UCP (partial)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Provenance Footer -->
+  <div class="provenance-footer">
+    <h4>Data Provenance</h4>
+    <div class="provenance-grid">
+      <div class="provenance-item">
+        <div class="pv-label">Source</div>
+        <div class="pv-value">Neo4j graph analysis of GOA grants + CRA charity governance data</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Query Date</div>
+        <div class="pv-value">2026-02-12</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Confidence</div>
+        <div class="pv-value">MEDIUM-HIGH</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Agent</div>
+        <div class="pv-value">Claude Code automated pipeline</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Clusters Analyzed</div>
+        <div class="pv-value">15 of 44 total (top by NDP funding)</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Color Scale</div>
+        <div class="pv-value">Log10 mapping: $0 (white) to $3.2B (navy)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <strong>Operation Lineage Audit</strong> &mdash; HelpSeeker Technologies &copy; 2026<br>
+    Generated from Neo4j graph analysis of Alberta Government grants &amp; CRA charity governance data.<br>
+    This dashboard is a self-contained HTML artifact. No external data connections required.
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="heatmap-tooltip" id="heatmapTooltip"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ===== DATA =====
+  var clusterData = [
+    { cluster: 750,  org: 'NAIT',                    size: 5,  flags: 6,  pc: 8500000,   ndp: 3221000000, ucp_k: 2800000000, ucp_s: 841649694 },
+    { cluster: 480,  org: 'Catholic Charities',       size: 14, flags: 51, pc: 3200000,   ndp: 78000000,   ucp_k: 12000000,   ucp_s: 5452637 },
+    { cluster: 881,  org: 'Calgary Zoo',              size: 6,  flags: 6,  pc: 1800000,   ndp: 56000000,   ucp_k: 1045100,    ucp_s: 0 },
+    { cluster: 920,  org: 'Edmonton Symphony',        size: 7,  flags: 18, pc: 1200000,   ndp: 26000000,   ucp_k: 0,          ucp_s: 0 },
+    { cluster: 228,  org: 'National Music Centre',    size: 7,  flags: 13, pc: 900000,    ndp: 21000000,   ucp_k: 0,          ucp_s: 0 },
+    { cluster: 20,   org: 'Burman University',        size: 1,  flags: 2,  pc: 500000,    ndp: 11000000,   ucp_k: 12000000,   ucp_s: 5301500 },
+    { cluster: 183,  org: 'Covenant Health',          size: 6,  flags: 15, pc: 400000,    ndp: 9400000,    ucp_k: 0,          ucp_s: 0 },
+    { cluster: 1089, org: 'Theatre Calgary',          size: 3,  flags: 10, pc: 600000,    ndp: 7200000,    ucp_k: 0,          ucp_s: 0 },
+    { cluster: 1530, org: 'Alberta Conservation',     size: 5,  flags: 15, pc: 800000,    ndp: 6900000,    ucp_k: 1800000,    ucp_s: 777064 },
+    { cluster: 1144, org: 'YMCA Edmonton',            size: 7,  flags: 14, pc: 350000,    ndp: 4500000,    ucp_k: 0,          ucp_s: 0 },
+    { cluster: 138,  org: 'Inclusion Alberta',        size: 4,  flags: 8,  pc: 200000,    ndp: 3700000,    ucp_k: 700000,     ucp_s: 300000 },
+    { cluster: 956,  org: 'Heritage Park',            size: 3,  flags: 5,  pc: 300000,    ndp: 2400000,    ucp_k: 0,          ucp_s: 0 },
+    { cluster: 1252, org: 'Lakeland Ag Research',     size: 4,  flags: 7,  pc: 250000,    ndp: 2300000,    ucp_k: 900000,     ucp_s: 400000 },
+    { cluster: 715,  org: 'Lesser Slave Watershed',   size: 3,  flags: 6,  pc: 150000,    ndp: 1100000,    ucp_k: 550000,     ucp_s: 250000 },
+    { cluster: 1167, org: 'One Yellow Rabbit',        size: 2,  flags: 4,  pc: 100000,    ndp: 1100000,    ucp_k: 0,          ucp_s: 0 }
+  ];
+
+  // Compute change percentages
+  clusterData.forEach(function(d) {
+    var ucpTotal = d.ucp_k + d.ucp_s;
+    if (d.ndp > 0 && ucpTotal === 0) {
+      d.change = -100;
+    } else if (d.ndp > 0) {
+      d.change = Math.round(((ucpTotal - d.ndp) / d.ndp) * 100);
+    } else {
+      d.change = ucpTotal > 0 ? 100 : 0;
+    }
+    d.ucpTotal = ucpTotal;
+  });
+
+  // ===== COLOR SCALE =====
+  var maxFunding = 3221000000;
+
+  function fundingColor(value, useLog) {
+    if (value === 0) return '#ffffff';
+    var t;
+    if (useLog) {
+      t = Math.log10(value + 1) / Math.log10(maxFunding + 1);
+    } else {
+      t = value / maxFunding;
+    }
+    t = Math.max(0, Math.min(1, t));
+
+    // Interpolate: white -> light teal -> teal -> dark navy
+    if (t < 0.25) {
+      var s = t / 0.25;
+      return interpolateColor('#ffffff', '#d4f1f0', s);
+    } else if (t < 0.5) {
+      var s = (t - 0.25) / 0.25;
+      return interpolateColor('#d4f1f0', '#4bc2c3', s);
+    } else if (t < 0.75) {
+      var s = (t - 0.5) / 0.25;
+      return interpolateColor('#4bc2c3', '#28bcb8', s);
+    } else {
+      var s = (t - 0.75) / 0.25;
+      return interpolateColor('#28bcb8', '#103656', s);
+    }
+  }
+
+  function interpolateColor(c1, c2, t) {
+    var r1 = parseInt(c1.substr(1, 2), 16), g1 = parseInt(c1.substr(3, 2), 16), b1 = parseInt(c1.substr(5, 2), 16);
+    var r2 = parseInt(c2.substr(1, 2), 16), g2 = parseInt(c2.substr(3, 2), 16), b2 = parseInt(c2.substr(5, 2), 16);
+    var r = Math.round(r1 + (r2 - r1) * t);
+    var g = Math.round(g1 + (g2 - g1) * t);
+    var b = Math.round(b1 + (b2 - b1) * t);
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  }
+
+  function textColor(bgColor) {
+    var r = parseInt(bgColor.substr(1, 2), 16);
+    var g = parseInt(bgColor.substr(3, 2), 16);
+    var b = parseInt(bgColor.substr(5, 2), 16);
+    var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.55 ? '#1a1a2e' : '#ffffff';
+  }
+
+  // ===== FORMAT CURRENCY =====
+  function fmtCurrency(val) {
+    if (val === 0) return '$0';
+    if (val >= 1e9) return '$' + (val / 1e9).toFixed(2) + 'B';
+    if (val >= 1e6) return '$' + (val / 1e6).toFixed(1) + 'M';
+    if (val >= 1e3) return '$' + (val / 1e3).toFixed(0) + 'K';
+    return '$' + val.toLocaleString('en-US');
+  }
+
+  function fmtExact(val) {
+    return '$' + val.toLocaleString('en-US');
+  }
+
+  // ===== TOOLTIP =====
+  var tooltip = document.getElementById('heatmapTooltip');
+
+  // ===== RENDER TABLE =====
+  function renderTable(data) {
+    var tbody = document.getElementById('heatmapBody');
+    tbody.innerHTML = '';
+    var useLog = document.getElementById('logScale').checked;
+    var showZeros = document.getElementById('showZeros').checked;
+
+    data.forEach(function(row) {
+      var tr = document.createElement('tr');
+
+      // Cluster ID
+      var tdCluster = document.createElement('td');
+      tdCluster.className = 'cluster-col';
+      tdCluster.textContent = row.cluster;
+      tr.appendChild(tdCluster);
+
+      // Org name
+      var tdOrg = document.createElement('td');
+      tdOrg.className = 'org-col';
+      tdOrg.textContent = row.org;
+      tr.appendChild(tdOrg);
+
+      // Size
+      var tdSize = document.createElement('td');
+      tdSize.className = 'size-col';
+      tdSize.textContent = row.size;
+      tr.appendChild(tdSize);
+
+      // Flags
+      var tdFlags = document.createElement('td');
+      tdFlags.className = 'flags-col';
+      var flagClass = row.flags < 6 ? 'low' : (row.flags < 16 ? 'med' : 'high');
+      tdFlags.innerHTML = '<span class="flag-badge ' + flagClass + '">' + row.flags + '</span>';
+      tr.appendChild(tdFlags);
+
+      // Era cells
+      var eras = [
+        { key: 'pc', label: 'PC Era', value: row.pc },
+        { key: 'ndp', label: 'NDP Era', value: row.ndp },
+        { key: 'ucp_k', label: 'UCP Kenney', value: row.ucp_k },
+        { key: 'ucp_s', label: 'UCP Smith', value: row.ucp_s }
+      ];
+
+      eras.forEach(function(era) {
+        var td = document.createElement('td');
+        var bg = fundingColor(era.value, useLog);
+        var fg = textColor(bg);
+
+        if (era.value === 0 && !showZeros) {
+          td.textContent = '-';
+          td.style.color = '#ccc';
+          td.style.background = '#fafafa';
+        } else {
+          td.textContent = fmtCurrency(era.value);
+          td.style.background = bg;
+          td.style.color = fg;
+        }
+
+        // Tooltip
+        td.addEventListener('mouseenter', function(e) {
+          var html = '<div class="tt-title">' + row.org + ' &mdash; ' + era.label + '</div>';
+          html += '<div class="tt-row"><span class="tt-label">Exact Amount:</span> <span class="tt-value">' + fmtExact(era.value) + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Cluster:</span> <span class="tt-value">#' + row.cluster + ' (' + row.size + ' orgs)</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">Risk Flags:</span> <span class="tt-value">' + row.flags + '</span></div>';
+          html += '<div class="tt-row"><span class="tt-label">NDP&rarr;UCP Change:</span> <span class="tt-value" style="color:' + (row.change >= 0 ? '#27ae60' : '#e74c3c') + ';">' + (row.change >= 0 ? '+' : '') + row.change + '%</span></div>';
+          tooltip.innerHTML = html;
+          tooltip.classList.add('visible');
+        });
+        td.addEventListener('mousemove', function(e) {
+          tooltip.style.left = (e.clientX + 14) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+          var rect = tooltip.getBoundingClientRect();
+          if (rect.right > window.innerWidth - 10) {
+            tooltip.style.left = (e.clientX - rect.width - 14) + 'px';
+          }
+        });
+        td.addEventListener('mouseleave', function() {
+          tooltip.classList.remove('visible');
+        });
+
+        tr.appendChild(td);
+      });
+
+      // Change column
+      var tdChange = document.createElement('td');
+      tdChange.className = 'change-cell';
+      if (row.change === -100) {
+        tdChange.textContent = '-100%';
+        tdChange.classList.add('change-negative');
+        tdChange.style.background = '#fde8e8';
+      } else if (row.change < 0) {
+        tdChange.textContent = row.change + '%';
+        tdChange.classList.add('change-negative');
+        var intensity = Math.min(Math.abs(row.change) / 100, 1);
+        tdChange.style.background = interpolateColor('#ffffff', '#fde8e8', intensity);
+      } else if (row.change > 0) {
+        tdChange.textContent = '+' + row.change + '%';
+        tdChange.classList.add('change-positive');
+        var intensity = Math.min(row.change / 100, 1);
+        tdChange.style.background = interpolateColor('#ffffff', '#e8f8f0', intensity);
+      } else {
+        tdChange.textContent = '0%';
+        tdChange.classList.add('change-neutral');
+      }
+
+      // Change tooltip
+      tdChange.addEventListener('mouseenter', function(e) {
+        var html = '<div class="tt-title">' + row.org + ' &mdash; NDP to UCP Change</div>';
+        html += '<div class="tt-row"><span class="tt-label">NDP Funding:</span> <span class="tt-value">' + fmtCurrency(row.ndp) + '</span></div>';
+        html += '<div class="tt-row"><span class="tt-label">UCP Total:</span> <span class="tt-value">' + fmtCurrency(row.ucpTotal) + '</span></div>';
+        html += '<div class="tt-row"><span class="tt-label">Change:</span> <span class="tt-value" style="color:' + (row.change >= 0 ? '#27ae60' : '#e74c3c') + ';">' + (row.change >= 0 ? '+' : '') + row.change + '%</span></div>';
+        tooltip.innerHTML = html;
+        tooltip.classList.add('visible');
+      });
+      tdChange.addEventListener('mousemove', function(e) {
+        tooltip.style.left = (e.clientX + 14) + 'px';
+        tooltip.style.top = (e.clientY - 10) + 'px';
+      });
+      tdChange.addEventListener('mouseleave', function() {
+        tooltip.classList.remove('visible');
+      });
+
+      tr.appendChild(tdChange);
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== SORT LOGIC =====
+  function sortData(sortKey) {
+    var sorted = clusterData.slice();
+    switch (sortKey) {
+      case 'ndp_desc': sorted.sort(function(a, b) { return b.ndp - a.ndp; }); break;
+      case 'ndp_asc': sorted.sort(function(a, b) { return a.ndp - b.ndp; }); break;
+      case 'change_desc': sorted.sort(function(a, b) { return b.change - a.change; }); break;
+      case 'change_asc': sorted.sort(function(a, b) { return a.change - b.change; }); break;
+      case 'flags_desc': sorted.sort(function(a, b) { return b.flags - a.flags; }); break;
+      case 'cluster_asc': sorted.sort(function(a, b) { return a.cluster - b.cluster; }); break;
+    }
+    return sorted;
+  }
+
+  // ===== INITIAL RENDER =====
+  renderTable(sortData('ndp_desc'));
+
+  // ===== EVENT HANDLERS =====
+  document.getElementById('sortColumn').addEventListener('change', function() {
+    renderTable(sortData(this.value));
+  });
+
+  document.getElementById('showZeros').addEventListener('change', function() {
+    renderTable(sortData(document.getElementById('sortColumn').value));
+  });
+
+  document.getElementById('logScale').addEventListener('change', function() {
+    renderTable(sortData(document.getElementById('sortColumn').value));
+  });
+
+})();
+</script>
+
+</body>
+</html>

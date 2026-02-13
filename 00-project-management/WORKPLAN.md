@@ -2,7 +2,7 @@
 
 ## Mission
 
-Build a KGL v1.3-aligned Neo4j knowledge graph that unifies Alberta ministry lineage, grant flows, CRA charity data, and director governance networks to answer a **graph-only smoking gun question** for Government of Alberta political analysis.
+Build a KGL v1.3-aligned Neo4j knowledge graph that unifies Alberta ministry lineage, grant flows, CRA charity data, and director governance networks to answer a **graph-only governance question** for Government of Alberta political analysis.
 
 ## The Question
 
@@ -83,25 +83,25 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 
 ---
 
-## Phase 2: Smoking Gun Queries (3 Parallel Agents)
+## Phase 2: Governance Analysis Queries (3 Parallel Agents)
 
 ### Agent 2A: NDP Ministry Funding Tracer
 - **Status:** PENDING
 - **Query:** Organizations receiving most through NDP-restructured ministries + UCP-era delta
-- **Output:** `03-smoking-gun-queries/ndp_ministry_funding_trace.csv`
-- **Skill:** `03-smoking-gun-queries/graph-analysis.skill.md`
+- **Output:** `03-governance-queries/ndp_ministry_funding_trace.csv`
+- **Skill:** `03-governance-queries/graph-analysis.skill.md`
 
 ### Agent 2B: Director-Cluster-Funding-Concentration Analyzer
 - **Status:** PENDING
 - **Query:** Governance clusters (orgs sharing directors) that received disproportionate per-org funding through NDP-restructured ministries vs non-clustered orgs
-- **Output:** `03-smoking-gun-queries/cluster_funding_concentration.csv`
-- **Skill:** `03-smoking-gun-queries/graph-analysis.skill.md`
+- **Output:** `03-governance-queries/cluster_funding_concentration.csv`
+- **Skill:** `03-governance-queries/graph-analysis.skill.md`
 
 ### Agent 2C: Governance Cluster Audit
 - **Status:** PENDING
 - **Query:** Clusters with highest NDP-era funding + risk flag concentration
-- **Output:** `03-smoking-gun-queries/cluster_ndp_audit.csv`
-- **Skill:** `03-smoking-gun-queries/graph-analysis.skill.md`
+- **Output:** `03-governance-queries/cluster_ndp_audit.csv`
+- **Skill:** `03-governance-queries/graph-analysis.skill.md`
 
 ---
 
@@ -110,7 +110,7 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
 ### Agent 3A: Business Analysis Synthesis
 - **Status:** PENDING
 - **Method:** "So What" chain (Observation → Pattern → Impact → Decision)
-- **Output:** `04-synthesis/smoking-gun-synthesis.md`
+- **Output:** `04-synthesis/governance-synthesis.md`
 - **Skill:** `04-synthesis/analysis-synthesis.skill.md`
 
 ### Agent 3B: HTML Dashboard Generator
@@ -120,7 +120,7 @@ No flat join can resolve ministry successor chains — that's the lineage graph.
   2. `05-html-artifacts/01-ministry-lineage-political.html` — Sankey diagram
   3. `05-html-artifacts/02-director-cluster-network.html` — D3 force graph (governance clusters)
   4. `05-html-artifacts/03-cluster-funding-heatmap.html` — era heatmap
-  5. `05-html-artifacts/04-smoking-gun-executive.html` — executive dashboard
+  5. `05-html-artifacts/04-governance-executive.html` — executive dashboard
 - **Skill:** `05-html-artifacts/visualization.skill.md`
 
 ### Agent 3C: Evidence Traceability Matrix
@@ -175,10 +175,10 @@ Total: 12 agent instances | Max concurrency: 3 | Estimated phases: 5
 | 2 | `01-ministry-lineage-political.html` | HTML (Sankey) | "Do transformations match OICs?" |
 | 3 | `02-director-cluster-network.html` | HTML (D3) | "Are cluster-director links real?" |
 | 4 | `03-cluster-funding-heatmap.html` | HTML (Heatmap) | "Do clusters match known relationships?" |
-| 5 | `04-smoking-gun-executive.html` | HTML (Dashboard) | "Are headline numbers correct?" |
+| 5 | `04-governance-executive.html` | HTML (Dashboard) | "Are headline numbers correct?" |
 | 6 | `evidence-traceability.csv` | CSV | "Every claim has a source — spot-check any row" |
 | 7 | `evidence-traceability.html` | HTML (filterable) | Interactive version of above |
-| 8 | `smoking-gun-synthesis.md` | Markdown | "Does the So What chain hold?" |
+| 8 | `governance-synthesis.md` | Markdown | "Does the So What chain hold?" |
 | 9 | `counter-arguments.md` | Markdown | "Are rebuttals addressed?" |
 | 10 | `unified-schema.cypher` | Cypher DDL | "Is schema KGL-compliant?" |
 | 11 | `grants_political_era.csv` | CSV | "Spot-check era tags vs OIC dates" |

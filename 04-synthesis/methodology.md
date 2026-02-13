@@ -260,7 +260,7 @@ The Aura instance contained data from prior HelpSeeker work before this audit:
 | C11 | Create FiscalYear nodes for ALL fiscal_year values including garbage | No easy way to filter valid years server-side | 2,679 nodes, ~2,668 are garbage |
 | C12 | Filter SHARED_DIRECTORS edges to both-in-set only | Only edges between known Alberta charities are useful | 6,826 of 154,015 (4.4%) |
 | C13 | Filter SITS_ON edges to known org BNs only | Can only link directors to orgs in our graph | 9,313 of 83,887 (11.1%) |
-| C14 | Federal grants NOT ingested into Neo4j | Scope limited to GOA grants for smoking gun question | 109,583 rows assembled but unused in graph |
+| C14 | ~~Federal grants NOT ingested into Neo4j~~ **RESOLVED** | Now ingested: 6,470 FUNDED_BY_FED edges, 8 FederalDepartment nodes, 1,348 matched BNs | 1,666 dual-funded orgs (GOA + federal) identified |
 
 ---
 
@@ -291,7 +291,9 @@ The Aura instance contained data from prior HelpSeeker work before this audit:
 | 0B (Director Network Builder) | Data Assembly | Databricks: multi_board_directors, org_clusters_strong, ab_org_risk_flags, org_network_edges_filtered | multi_board_directors.csv, org_clusters.csv, org_risk_flags.csv, org_network_edges.csv | ~9s |
 | 0D (Federal Grants) | Data Assembly | Databricks Volume: GoC Grants/grants.csv | federal_grants.csv (109,583 rows) | ~108s |
 | 1A/1B (Graph Builder) | Graph Construction | All Phase 0 CSVs → Neo4j Aura | 76,935 relationships across 5 types | ~2.5 hours (3 script runs) |
-| 2 (Smoking Gun) | Graph Analysis | Neo4j Cypher queries | 4 result CSVs + query_log.md | ~8s |
+| 2 (Governance Analysis) | Graph Analysis | Neo4j Cypher queries | 4 result CSVs + query_log.md | ~8s |
+| 1C (Federal Grants) | Graph Construction | federal_grants.csv → Neo4j Aura | 6,470 FUNDED_BY_FED edges, 8 FederalDepartment nodes | ~195s |
+| 4C (Statistical Tests) | Validation | Neo4j → Mann-Whitney U + KS test | statistical_test_results.md | ~15s |
 
 ### Databricks Connection
 
@@ -351,7 +353,7 @@ GROUP BY Recipient, Ministry, FiscalYear,
 | DQ6 | 1,066 grant groups reference corrupted ministry name `CULTURE,MULTICULTURALISMANDSTATUSOFWOMEN` | LOW | These could not be matched to an OrgEntity. Excluded from graph ingestion. |
 | DQ7 | Cluster membership is single-point-in-time, not temporal | MEDIUM | Clusters may have formed or dissolved during the study period. The analysis assumes static cluster composition. |
 | DQ8 | Risk flags are single-year snapshot | MEDIUM | A deficit flag today doesn't mean deficit during NDP era. Flags indicate current risk, not historical. |
-| DQ9 | Federal grants assembled but not ingested into graph | LOW | Available for future enrichment. Not part of current smoking gun analysis. |
+| DQ9 | ~~Federal grants assembled but not ingested into graph~~ **RESOLVED** | — | Now ingested: 6,470 FUNDED_BY_FED edges across 8 federal departments. 1,666 dual-funded orgs identified. |
 | DQ10 | Some duplicate org rows in Q1 output (NAIT appears 4x, Mount Royal 6x) | LOW | Caused by multiple RECEIVED_GRANT edges to different OrgEntity nodes for same org. Aggregate totals are correct; row count inflated. |
 
 ---
@@ -367,12 +369,14 @@ All scripts are committed to `github.com/HelpSeekerTechnologies/lineage-audit`:
 | `01-data-assembly/agent_0d_federal_grants_v2.py` | 0 | Federal grants extraction |
 | `02-graph-build/agent_1_graph_builder.py` | 1 | Full graph construction (Steps 1-10) |
 | `02-graph-build/agent_1_resume.py` | 1 | Resume script for Steps 8-10 |
-| `03-smoking-gun-queries/agent_2_smoking_gun.py` | 2 | All Cypher queries + symmetry test |
+| `03-governance-queries/agent_2_governance_queries.py` | 2 | All Cypher queries + symmetry test |
+| `02-graph-build/agent_1_federal_grants.py` | 1C | Federal grants ingestion into Neo4j |
+| `06-validation/statistical_tests.py` | 4C | Mann-Whitney U + KS significance tests |
 
 To reproduce from scratch:
 1. Ensure Databricks and Neo4j Aura connections are active
 2. Run agents 0A, 0B, 0D (produces CSVs in `01-data-assembly/`)
 3. Run agent 1 (ingests CSVs into Neo4j Aura)
-4. Run agent 2 (executes Cypher queries, produces result CSVs in `03-smoking-gun-queries/`)
+4. Run agent 2 (executes Cypher queries, produces result CSVs in `03-governance-queries/`)
 
 **Dependencies:** `pip install databricks-sql-connector neo4j pandas`

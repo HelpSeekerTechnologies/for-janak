@@ -1,6 +1,6 @@
 # Graph Analysis Skill
 
-Write and execute multi-hop Cypher queries against the unified Neo4j graph to answer the smoking gun question. Each query isolates one dimension; the synthesis phase combines them.
+Write and execute multi-hop Cypher queries against the unified Neo4j graph to answer the core governance question. Each query isolates one dimension; the synthesis phase combines them.
 
 ---
 

@@ -49,7 +49,7 @@ Governance clusters × fiscal years, colored by funding volume.
 - Political era bands: shaded background columns
 - Click cell: expand to show org-level breakdown
 
-### 5. `04-smoking-gun-executive.html` — Executive Dashboard
+### 5. `04-governance-executive.html` — Executive Dashboard
 The headline numbers and evidence chain in a single-page dashboard.
 - Hero metrics: total NDP-era funding through restructured ministries, # flagged orgs, # director-donation links
 - Three finding cards with "So What" chains

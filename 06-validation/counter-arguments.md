@@ -1,7 +1,7 @@
 # Counter-Argument Pre-Brief — Operation Lineage Audit Phase 4
 
 **Prepared:** 2026-02-12
-**Purpose:** Pre-briefed responses to anticipated challenges against smoking gun findings
+**Purpose:** Pre-briefed responses to anticipated challenges against governance analysis findings
 **Standard:** Each response cites verifiable data from the graph model and source files
 
 ---
@@ -65,9 +65,14 @@ Key points:
 - The claim is not that shared directors are unusual — the claim is that organizations with shared directors received disproportionately more funding through NDP-restructured ministry channels specifically.
 - The median metric is robust against the argument that a few large organizations skew the average. The entire distribution of clustered orgs is shifted upward.
 
-**Recommended test:** Compare the funding distributions using non-parametric test. If p < 0.05, the cluster effect is real.
+**Statistical confirmation (Mann-Whitney U):**
+- **p = 2.80e-06 (p < 0.001)** — the funding disparity is statistically significant at all conventional thresholds
+- Kolmogorov-Smirnov test independently confirms: **p = 6.99e-08**
+- Effect size (rank-biserial): **r = 0.27** (small-to-medium)
+- Common Language Effect Size: **63.4%** — a randomly chosen clustered org has a 63.4% chance of receiving more funding than a randomly chosen non-clustered org
+- Full results: `06-validation/statistical_test_results.md`
 
-**Confidence:** MEDIUM — statistical significance test not yet executed; directional finding is strong.
+**Confidence:** HIGH — statistical significance confirmed at p < 0.001 with two independent non-parametric tests.
 
 ---
 
@@ -96,5 +101,5 @@ Specifics:
 | 1 | Pre-existing trends | HIGH | 289x total increase, 20.7x per-grant |
 | 2 | Cherry-picking | HIGH | Full population (2,822 orgs), median reported |
 | 3 | Same under UCP | HIGH | NDP 10.76x vs UCP 2.78x = 3.87x difference |
-| 4 | Coincidental clusters | MEDIUM | 6.21x median shift; awaiting Mann-Whitney U |
+| 4 | Coincidental clusters | HIGH | p = 2.80e-06 (Mann-Whitney U); 6.21x median shift confirmed |
 | 5 | Name matching errors | HIGH | 2.6% match rate reflects strict exact-match |

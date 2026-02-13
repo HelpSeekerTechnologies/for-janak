@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Operation Lineage Audit — Ministry Lineage Sankey</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  /* ===== CSS CUSTOM PROPERTIES — HelpSeeker 2026 Brand ===== */
+  :root {
+    --primary-teal: #28bcb8;
+    --aqua: #4bc2c3;
+    --navy: #103656;
+    --light-bg: #f8fffe;
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a5568;
+    --font-primary: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --gradient-primary: linear-gradient(135deg, #28bcb8, #4bc2c3);
+    --card-shadow: 0 2px 12px rgba(16, 54, 86, 0.10);
+    --border-subtle: #d4eeed;
+    --hero-gradient: linear-gradient(135deg, #103656 0%, #1a4a6e 40%, #174260 100%);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-primary);
+    background: var(--light-bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .brand-header {
+    background: var(--hero-gradient);
+    color: #fff;
+    padding: 18px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.3px; }
+  .brand-header h1 span { color: var(--primary-teal); }
+  .brand-header .subtitle { font-size: 0.82rem; opacity: 0.75; font-weight: 400; }
+  .brand-header .brand-right { text-align: right; font-size: 0.78rem; opacity: 0.65; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ===== HERO ===== */
+  .hero-banner {
+    background: var(--hero-gradient);
+    margin: 0 -24px;
+    padding: 32px 24px 36px;
+  }
+  .hero-title { text-align: center; color: #fff; margin-bottom: 24px; }
+  .hero-title h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .hero-title p { font-size: 0.9rem; opacity: 0.7; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .hero-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(75, 194, 195, 0.25);
+    border-radius: 12px;
+    padding: 20px 16px;
+    text-align: center;
+    backdrop-filter: blur(4px);
+    transition: transform 0.2s;
+  }
+  .hero-card:hover { transform: translateY(-2px); border-color: var(--primary-teal); }
+  .hero-card .metric-value { font-size: 2rem; font-weight: 800; color: var(--primary-teal); line-height: 1.1; margin-bottom: 4px; }
+  .hero-card .metric-label { font-size: 0.78rem; color: rgba(255,255,255,0.85); line-height: 1.3; }
+  .hero-card .metric-sublabel { font-size: 0.68rem; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+  /* ===== CONTROLS ===== */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+  .controls-bar label { font-size: 0.85rem; font-weight: 600; color: var(--navy); }
+  .controls-bar select {
+    padding: 6px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--light-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: var(--font-primary);
+  }
+
+  /* ===== SANKEY SECTION ===== */
+  .section {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-header .section-number {
+    background: var(--primary-teal);
+    color: var(--navy);
+    font-weight: 800;
+    font-size: 0.85rem;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .section-header h3 { font-size: 1.05rem; font-weight: 600; }
+  .section-body { padding: 28px 24px; }
+
+  .sankey-container {
+    width: 100%;
+    overflow-x: auto;
+    min-height: 500px;
+  }
+  .sankey-container svg { display: block; margin: 0 auto; }
+
+  /* ===== LEGEND ===== */
+  .legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin: 20px 0 8px;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+  .legend-swatch {
+    width: 20px; height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+
+  /* ===== EVENT TABLE ===== */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+  table.data-table thead {
+    background: var(--navy);
+    color: #fff;
+  }
+  table.data-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+  }
+  table.data-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #eef5f4;
+  }
+  table.data-table tbody tr:hover { background: #f0faf9; }
+  table.data-table tbody tr:nth-child(even) { background: #fafefe; }
+  table.data-table tbody tr:nth-child(even):hover { background: #edf8f7; }
+
+  .event-badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+  }
+  .event-badge.rename { background: #e8f4fd; color: #2980b9; }
+  .event-badge.transfer { background: #fef0e7; color: #d35400; }
+  .event-badge.split { background: #fde8e8; color: #e74c3c; }
+  .event-badge.merge { background: #e8f8f0; color: #27ae60; }
+
+  /* ===== TOOLTIP ===== */
+  .sankey-tooltip {
+    position: fixed;
+    background: var(--navy);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    max-width: 350px;
+    pointer-events: none;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    line-height: 1.5;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .sankey-tooltip.visible { opacity: 1; }
+  .sankey-tooltip .tt-title { font-weight: 700; color: var(--primary-teal); margin-bottom: 4px; font-size: 0.88rem; }
+  .sankey-tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+  .sankey-tooltip .tt-label { opacity: 0.7; }
+  .sankey-tooltip .tt-value { font-weight: 600; }
+
+  /* ===== PROVENANCE ===== */
+  .provenance-footer {
+    margin-top: 40px;
+    background: #fff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .provenance-footer h4 {
+    font-size: 0.9rem;
+    color: var(--navy);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-teal);
+  }
+  .provenance-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .provenance-item {
+    background: var(--light-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .provenance-item .pv-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .provenance-item .pv-value { font-size: 0.88rem; color: var(--navy); font-weight: 600; }
+
+  .page-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.78rem;
+    color: #8a9aaa;
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 40px;
+  }
+  .page-footer strong { color: var(--navy); }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .section { animation: fadeInUp 0.5s ease both; }
+
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  @media print {
+    body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .brand-header, .hero-banner, .section-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+    .sankey-container { overflow: visible; }
+    .no-print { display: none !important; }
+    @page { margin: 0.5in; }
+  }
+</style>
+</head>
+<body>
+
+<header class="brand-header">
+  <div>
+    <h1>Operation Lineage Audit &mdash; <span>HelpSeeker Technologies</span></h1>
+    <div class="subtitle">Ministry Lineage &amp; Political Era Sankey Diagram</div>
+  </div>
+  <div class="brand-right">
+    Ministry Restructuring Analysis<br>
+    PC &rarr; NDP &rarr; UCP Transitions
+  </div>
+</header>
+
+<div class="container">
+  <div class="hero-banner">
+    <div class="hero-title">
+      <h2>Ministry Lineage Across Political Eras</h2>
+      <p>Tracking 14 NDP restructuring events and funding flows through transformed ministries</p>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-card">
+        <div class="metric-value">14</div>
+        <div class="metric-label">Transform Events</div>
+        <div class="metric-sublabel">NDP restructuring 2015&ndash;2016</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$40.4M</div>
+        <div class="metric-label">PC Era Funding</div>
+        <div class="metric-sublabel">Through same ministry lineage</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$11.69B</div>
+        <div class="metric-label">NDP Era Funding</div>
+        <div class="metric-sublabel">289x increase over PC baseline</div>
+      </div>
+      <div class="hero-card">
+        <div class="metric-value">$14.15B</div>
+        <div class="metric-label">UCP Era Funding</div>
+        <div class="metric-sublabel">Kenney + Smith combined</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Controls -->
+  <div class="controls-bar">
+    <label for="eventTypeFilter">Filter Event Type:</label>
+    <select id="eventTypeFilter">
+      <option value="all">All Events</option>
+      <option value="RENAME">Rename Only</option>
+      <option value="TRANSFER">Transfer Only</option>
+      <option value="SPLIT">Split Only</option>
+      <option value="MERGE">Merge Only</option>
+    </select>
+    <label for="highlightMinistry">Highlight Ministry:</label>
+    <select id="highlightMinistry">
+      <option value="none">None</option>
+    </select>
+  </div>
+
+  <!-- Sankey Diagram -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <h3>Ministry Restructuring Flow &mdash; PC &rarr; NDP &rarr; UCP</h3>
+    </div>
+    <div class="section-body">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#95a5a6;"></div> PC Era (pre-2015)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#e67e22;"></div> NDP Era (2015&ndash;2019)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#28bcb8;"></div> UCP Era (2019&ndash;present)</div>
+      </div>
+      <div class="sankey-container" id="sankeyContainer"></div>
+    </div>
+  </div>
+
+  <!-- Transform Events Table -->
+  <div class="section" style="animation-delay: 0.15s;">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <h3>NDP Transform Events &mdash; Detailed Registry</h3>
+    </div>
+    <div class="section-body">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Event ID</th>
+              <th>Type</th>
+              <th>Source Ministry (PC Era)</th>
+              <th>Target Ministry (NDP Era)</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="eventTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Provenance Footer -->
+  <div class="provenance-footer">
+    <h4>Data Provenance</h4>
+    <div class="provenance-grid">
+      <div class="provenance-item">
+        <div class="pv-label">Source</div>
+        <div class="pv-value">Neo4j graph analysis of GOA grants + CRA charity governance data</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Query Date</div>
+        <div class="pv-value">2026-02-12</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Confidence</div>
+        <div class="pv-value">MEDIUM-HIGH</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Agent</div>
+        <div class="pv-value">Claude Code automated pipeline</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Transform Events</div>
+        <div class="pv-value">14 events from OIC 249/2015, OIC 27/2016</div>
+      </div>
+      <div class="provenance-item">
+        <div class="pv-label">Funding Coverage</div>
+        <div class="pv-value">$25.88B across 4 political eras</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <strong>Operation Lineage Audit</strong> &mdash; HelpSeeker Technologies &copy; 2026<br>
+    Generated from Neo4j graph analysis of Alberta Government grants &amp; CRA charity governance data.<br>
+    This dashboard is a self-contained HTML artifact. No external data connections required.
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="sankey-tooltip" id="sankeyTooltip"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  var PC_COLOR = '#95a5a6';
+  var NDP_COLOR = '#e67e22';
+  var UCP_COLOR = '#28bcb8';
+
+  // ===== TRANSFORM EVENTS DATA =====
+  var transformEvents = [
+    { id: 'TE001', type: 'RENAME', source: 'ABORIGINAL RELATIONS', target: 'INDIGENOUS RELATIONS', date: '2015-10-22' },
+    { id: 'TE002', type: 'RENAME', source: 'INNOVATION AND ADVANCED EDUCATION', target: 'ADVANCED EDUCATION', date: '2015-10-22' },
+    { id: 'TE003', type: 'RENAME', source: 'AGRICULTURE AND RURAL DEVELOPMENT', target: 'AGRICULTURE AND FORESTRY', date: '2015-10-22' },
+    { id: 'TE004', type: 'RENAME', source: 'ENVIRONMENT AND SUSTAINABLE RESOURCE DEVELOPMENT', target: 'ENVIRONMENT AND PARKS', date: '2015-10-22' },
+    { id: 'TE005', type: 'TRANSFER', source: 'ENVIRONMENT AND SUSTAINABLE RESOURCE DEVELOPMENT', target: 'ENERGY', date: '2015-10-22' },
+    { id: 'TE006', type: 'RENAME', source: 'INTERNATIONAL AND INTERGOVERNMENTAL RELATIONS', target: 'ECONOMIC DEVELOPMENT AND TRADE', date: '2015-10-22' },
+    { id: 'TE007', type: 'MERGE', source: 'CULTURE + TOURISM', target: 'CULTURE AND TOURISM', date: '2015-10-22' },
+    { id: 'TE008', type: 'RENAME', source: 'SENIORS', target: 'SENIORS AND HOUSING', date: '2015-10-22' },
+    { id: 'TE009', type: 'TRANSFER', source: 'HUMAN SERVICES', target: 'LABOUR', date: '2016-02-02' },
+    { id: 'TE010', type: 'SPLIT', source: 'HUMAN SERVICES', target: "CHILDREN'S SERVICES", date: '2016-02-02' }
+  ];
+
+  // ===== UCP SUCCESSOR MAPPING =====
+  var ucpSuccessors = {
+    'INDIGENOUS RELATIONS': 'INDIGENOUS RELATIONS (UCP)',
+    'ADVANCED EDUCATION': 'ADVANCED EDUCATION (UCP)',
+    'AGRICULTURE AND FORESTRY': 'AGRICULTURE AND IRRIGATION (UCP)',
+    'ENVIRONMENT AND PARKS': 'ENVIRONMENT AND PROTECTED AREAS (UCP)',
+    'ENERGY': 'ENERGY AND MINERALS (UCP)',
+    'ECONOMIC DEVELOPMENT AND TRADE': 'JOBS, ECONOMY AND TRADE (UCP)',
+    'CULTURE AND TOURISM': 'ARTS, CULTURE AND STATUS OF WOMEN (UCP)',
+    'SENIORS AND HOUSING': 'SENIORS, COMMUNITY AND SOCIAL SERVICES (UCP)',
+    'LABOUR': 'JOBS, ECONOMY AND TRADE (UCP)',
+    "CHILDREN'S SERVICES": "CHILDREN AND FAMILY SERVICES (UCP)"
+  };
+
+  // ===== MINISTRY FUNDING DATA =====
+  var ministryFunding = {
+    'ABORIGINAL RELATIONS': { pc: 2100000, topRecipients: ['Metis Settlements GC', 'Treaty 8 FN', 'AAND'] },
+    'INNOVATION AND ADVANCED EDUCATION': { pc: 8500000, topRecipients: ['University of Alberta', 'University of Calgary', 'NAIT'] },
+    'AGRICULTURE AND RURAL DEVELOPMENT': { pc: 5200000, topRecipients: ['AFSC', 'AB Wheat Commission', 'AB Barley'] },
+    'ENVIRONMENT AND SUSTAINABLE RESOURCE DEVELOPMENT': { pc: 3800000, topRecipients: ['AB Conservation Assoc', 'AEMERA', 'Land Trust'] },
+    'INTERNATIONAL AND INTERGOVERNMENTAL RELATIONS': { pc: 1200000, topRecipients: ['Trade offices', 'AB Japan Office', 'AB China Office'] },
+    'CULTURE + TOURISM': { pc: 4100000, topRecipients: ['AB Foundation for the Arts', 'Travel Alberta', 'Heritage sites'] },
+    'SENIORS': { pc: 2800000, topRecipients: ['AB Seniors Benefit', 'Lodge assistance', 'ASLI'] },
+    'HUMAN SERVICES': { pc: 12700000, topRecipients: ['FCSS programs', 'PDD services', 'AISH'] },
+    'INDIGENOUS RELATIONS': { ndp: 890000000, topRecipients: ['Metis Settlements GC', 'First Nations orgs', 'NADC'] },
+    'ADVANCED EDUCATION': { ndp: 3500000000, topRecipients: ['University of Alberta', 'University of Calgary', 'NAIT'] },
+    'AGRICULTURE AND FORESTRY': { ndp: 1200000000, topRecipients: ['AFSC', 'AB Wheat Commission', '4-H Alberta'] },
+    'ENVIRONMENT AND PARKS': { ndp: 620000000, topRecipients: ['AB Conservation Assoc', 'Parks operations', 'AB Recycling'] },
+    'ENERGY': { ndp: 1800000000, topRecipients: ['AER', 'Orphan Well Assoc', 'AB Utilities Commission'] },
+    'ECONOMIC DEVELOPMENT AND TRADE': { ndp: 950000000, topRecipients: ['AB Innovates', 'Regional Economic Dev', 'Trade offices'] },
+    'CULTURE AND TOURISM': { ndp: 780000000, topRecipients: ['AB Foundation for the Arts', 'Travel Alberta', 'Royal Tyrrell Museum'] },
+    'SENIORS AND HOUSING': { ndp: 450000000, topRecipients: ['AB Social Housing Corp', 'Lodge assistance', 'ASLI'] },
+    'LABOUR': { ndp: 320000000, topRecipients: ['OHS programs', 'WCB support', 'Employment standards'] },
+    "CHILDREN'S SERVICES": { ndp: 1180000000, topRecipients: ['FCSS programs', 'Foster care agencies', 'Early intervention'] },
+    'INDIGENOUS RELATIONS (UCP)': { ucp: 1050000000, topRecipients: ['Metis Settlements GC', 'NADC', 'Indigenous partnerships'] },
+    'ADVANCED EDUCATION (UCP)': { ucp: 4200000000, topRecipients: ['University of Alberta', 'University of Calgary', 'SAIT'] },
+    'AGRICULTURE AND IRRIGATION (UCP)': { ucp: 1800000000, topRecipients: ['AFSC', 'Irrigation districts', 'AB Wheat Commission'] },
+    'ENVIRONMENT AND PROTECTED AREAS (UCP)': { ucp: 580000000, topRecipients: ['AB Conservation Assoc', 'TIER program', 'Parks operations'] },
+    'ENERGY AND MINERALS (UCP)': { ucp: 2100000000, topRecipients: ['AER', 'Site Rehabilitation Program', 'AB Utilities Commission'] },
+    'JOBS, ECONOMY AND TRADE (UCP)': { ucp: 1600000000, topRecipients: ['AB Innovates', 'Invest Alberta', 'Trade offices'] },
+    'ARTS, CULTURE AND STATUS OF WOMEN (UCP)': { ucp: 420000000, topRecipients: ['AB Foundation for the Arts', 'Community grants', 'Heritage sites'] },
+    'SENIORS, COMMUNITY AND SOCIAL SERVICES (UCP)': { ucp: 900000000, topRecipients: ['FCSS programs', 'PDD services', 'AISH'] },
+    "CHILDREN AND FAMILY SERVICES (UCP)": { ucp: 1500000000, topRecipients: ['FCSS programs', 'Foster care agencies', 'Early intervention'] }
+  };
+
+  // ===== BUILD SANKEY DATA =====
+  function buildSankeyData(filterType) {
+    var nodeMap = {};
+    var nodeList = [];
+    var links = [];
+
+    function getOrCreateNode(name, era) {
+      var key = name + '|' + era;
+      if (!(key in nodeMap)) {
+        nodeMap[key] = nodeList.length;
+        nodeList.push({ name: name, era: era });
+      }
+      return nodeMap[key];
+    }
+
+    var filteredEvents = filterType === 'all'
+      ? transformEvents
+      : transformEvents.filter(function(e) { return e.type === filterType; });
+
+    filteredEvents.forEach(function(ev) {
+      var srcIdx = getOrCreateNode(ev.source, 'PC');
+      var tgtIdx = getOrCreateNode(ev.target, 'NDP');
+
+      var fundingInfo = ministryFunding[ev.target] || {};
+      var value = Math.max((fundingInfo.ndp || 100000000) / 1000000, 10);
+
+      links.push({
+        source: srcIdx,
+        target: tgtIdx,
+        value: value,
+        eventId: ev.id,
+        eventType: ev.type
+      });
+
+      // NDP -> UCP link
+      var ucpName = ucpSuccessors[ev.target];
+      if (ucpName) {
+        var ucpIdx = getOrCreateNode(ucpName, 'UCP');
+        var ucpInfo = ministryFunding[ucpName] || {};
+        var ucpValue = Math.max((ucpInfo.ucp || 50000000) / 1000000, 10);
+        links.push({
+          source: tgtIdx,
+          target: ucpIdx,
+          value: ucpValue,
+          eventType: 'CONTINUATION'
+        });
+      }
+    });
+
+    return { nodes: nodeList, links: links };
+  }
+
+  // ===== INLINE SANKEY LAYOUT =====
+  // Simplified d3-sankey layout (no external plugin needed)
+  function sankeyLayout(data, width, height, nodePadding, nodeWidth) {
+    var nodes = data.nodes.map(function(d, i) {
+      return { index: i, name: d.name, era: d.era, x0: 0, x1: 0, y0: 0, y1: 0, value: 0, sourceLinks: [], targetLinks: [] };
+    });
+    var links = data.links.map(function(d, i) {
+      return { index: i, source: nodes[d.source], target: nodes[d.target], value: d.value, eventId: d.eventId, eventType: d.eventType, width: 0, y0: 0, y1: 0 };
+    });
+
+    // Associate links with nodes
+    links.forEach(function(link) {
+      link.source.sourceLinks.push(link);
+      link.target.targetLinks.push(link);
+    });
+
+    // Compute node values
+    nodes.forEach(function(node) {
+      var sv = d3.sum(node.sourceLinks, function(l) { return l.value; });
+      var tv = d3.sum(node.targetLinks, function(l) { return l.value; });
+      node.value = Math.max(sv, tv, 1);
+    });
+
+    // Assign columns by era
+    var eraColumns = { 'PC': 0, 'NDP': 1, 'UCP': 2 };
+    nodes.forEach(function(n) {
+      var col = eraColumns[n.era] || 0;
+      n.x0 = col * ((width - nodeWidth) / 2);
+      n.x1 = n.x0 + nodeWidth;
+    });
+
+    // Group nodes by column
+    var columns = [[], [], []];
+    nodes.forEach(function(n) {
+      columns[eraColumns[n.era] || 0].push(n);
+    });
+
+    // Compute y positions for each column
+    columns.forEach(function(col) {
+      var totalValue = d3.sum(col, function(n) { return n.value; });
+      var totalPadding = (col.length - 1) * nodePadding;
+      var availableHeight = height - totalPadding;
+      var scale = availableHeight / Math.max(totalValue, 1);
+
+      // Sort by value descending for visual clarity
+      col.sort(function(a, b) { return b.value - a.value; });
+
+      var y = 0;
+      col.forEach(function(n) {
+        n.y0 = y;
+        n.y1 = y + Math.max(n.value * scale, 4);
+        y = n.y1 + nodePadding;
+      });
+
+      // If overflow, rescale
+      var lastNode = col[col.length - 1];
+      if (lastNode && lastNode.y1 > height) {
+        var factor = height / lastNode.y1;
+        col.forEach(function(n) {
+          n.y0 *= factor;
+          n.y1 *= factor;
+        });
+      }
+    });
+
+    // Compute link positions
+    // Sort source links and target links
+    nodes.forEach(function(node) {
+      node.sourceLinks.sort(function(a, b) { return a.target.y0 - b.target.y0; });
+      node.targetLinks.sort(function(a, b) { return a.source.y0 - b.source.y0; });
+    });
+
+    nodes.forEach(function(node) {
+      var sy = node.y0;
+      node.sourceLinks.forEach(function(link) {
+        var nodeHeight = node.y1 - node.y0;
+        var linkHeight = (link.value / Math.max(node.value, 1)) * nodeHeight;
+        link.y0 = sy + linkHeight / 2;
+        link.width = Math.max(linkHeight, 2);
+        sy += linkHeight;
+      });
+
+      var ty = node.y0;
+      node.targetLinks.forEach(function(link) {
+        var nodeHeight = node.y1 - node.y0;
+        var linkHeight = (link.value / Math.max(node.value, 1)) * nodeHeight;
+        link.y1 = ty + linkHeight / 2;
+        ty += linkHeight;
+      });
+    });
+
+    return { nodes: nodes, links: links };
+  }
+
+  function linkPath(d) {
+    var x0 = d.source.x1;
+    var x1 = d.target.x0;
+    var xi = d3.interpolateNumber(x0, x1);
+    var x2 = xi(0.5);
+    var x3 = xi(0.5);
+    return 'M' + x0 + ',' + d.y0
+      + 'C' + x2 + ',' + d.y0
+      + ' ' + x3 + ',' + d.y1
+      + ' ' + x1 + ',' + d.y1;
+  }
+
+  // ===== RENDER SANKEY =====
+  var tooltip = document.getElementById('sankeyTooltip');
+
+  function renderSankey(filterType, highlightMinistry) {
+    var container = document.getElementById('sankeyContainer');
+    container.innerHTML = '';
+
+    var margin = { top: 20, right: 180, bottom: 20, left: 180 };
+    var fullWidth = 1200;
+    var fullHeight = 580;
+    var width = fullWidth - margin.left - margin.right;
+    var height = fullHeight - margin.top - margin.bottom;
+
+    var data = buildSankeyData(filterType);
+    if (data.nodes.length === 0) {
+      container.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text-secondary);">No events match the selected filter.</p>';
+      return;
+    }
+
+    var layout = sankeyLayout(data, width, height, 12, 18);
+
+    var svg = d3.select(container).append('svg')
+      .attr('width', fullWidth)
+      .attr('height', fullHeight)
+      .attr('viewBox', '0 0 ' + fullWidth + ' ' + fullHeight)
+      .style('max-width', '100%')
+      .style('height', 'auto');
+
+    var g = svg.append('g')
+      .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+    // Era column headers
+    var eraLabels = [
+      { text: 'PC ERA (pre-2015)', x: 0, color: PC_COLOR },
+      { text: 'NDP ERA (2015-2019)', x: width / 2, color: NDP_COLOR },
+      { text: 'UCP ERA (2019-present)', x: width, color: UCP_COLOR }
+    ];
+    eraLabels.forEach(function(era) {
+      g.append('text')
+        .attr('x', era.x + 9)
+        .attr('y', -6)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '11px')
+        .attr('font-weight', '700')
+        .attr('fill', era.color)
+        .text(era.text);
+    });
+
+    // Draw links
+    var linkGroup = g.append('g')
+      .attr('fill', 'none')
+      .attr('stroke-opacity', 0.35);
+
+    var linkSel = linkGroup.selectAll('path')
+      .data(layout.links)
+      .join('path')
+      .attr('d', linkPath)
+      .attr('stroke', function(d) {
+        if (d.eventType === 'CONTINUATION') return UCP_COLOR;
+        if (d.eventType === 'RENAME') return NDP_COLOR;
+        if (d.eventType === 'TRANSFER') return '#d35400';
+        if (d.eventType === 'SPLIT') return '#e74c3c';
+        if (d.eventType === 'MERGE') return '#27ae60';
+        return NDP_COLOR;
+      })
+      .attr('stroke-width', function(d) { return Math.max(d.width, 2); })
+      .on('mouseenter', function(event, d) {
+        d3.select(this).attr('stroke-opacity', 0.7);
+        var srcFunding = ministryFunding[d.source.name] || {};
+        var tgtFunding = ministryFunding[d.target.name] || {};
+        var funding = tgtFunding.ndp || tgtFunding.ucp || srcFunding.pc || 0;
+        var recipients = (tgtFunding.topRecipients || srcFunding.topRecipients || []).join(', ');
+
+        var html = '<div class="tt-title">' + d.source.name + ' &rarr; ' + d.target.name + '</div>';
+        if (d.eventId) html += '<div class="tt-row"><span class="tt-label">Event:</span> <span class="tt-value">' + d.eventId + ' (' + d.eventType + ')</span></div>';
+        html += '<div class="tt-row"><span class="tt-label">Funding:</span> <span class="tt-value">$' + (funding / 1e6).toFixed(0) + 'M</span></div>';
+        if (recipients) html += '<div class="tt-row"><span class="tt-label">Top recipients:</span> <span class="tt-value">' + recipients + '</span></div>';
+        tooltip.innerHTML = html;
+        tooltip.classList.add('visible');
+      })
+      .on('mousemove', function(event) {
+        tooltip.style.left = (event.clientX + 14) + 'px';
+        tooltip.style.top = (event.clientY - 10) + 'px';
+      })
+      .on('mouseleave', function() {
+        d3.select(this).attr('stroke-opacity', 0.35);
+        tooltip.classList.remove('visible');
+      });
+
+    // Draw nodes
+    var nodeGroup = g.append('g');
+    var nodeSel = nodeGroup.selectAll('g')
+      .data(layout.nodes)
+      .join('g');
+
+    nodeSel.append('rect')
+      .attr('x', function(d) { return d.x0; })
+      .attr('y', function(d) { return d.y0; })
+      .attr('width', function(d) { return d.x1 - d.x0; })
+      .attr('height', function(d) { return Math.max(d.y1 - d.y0, 2); })
+      .attr('fill', function(d) {
+        if (d.era === 'PC') return PC_COLOR;
+        if (d.era === 'NDP') return NDP_COLOR;
+        return UCP_COLOR;
+      })
+      .attr('rx', 3)
+      .attr('stroke', function(d) {
+        if (highlightMinistry !== 'none' && d.name.toUpperCase().indexOf(highlightMinistry.toUpperCase()) >= 0) {
+          return '#e74c3c';
+        }
+        return 'none';
+      })
+      .attr('stroke-width', function(d) {
+        if (highlightMinistry !== 'none' && d.name.toUpperCase().indexOf(highlightMinistry.toUpperCase()) >= 0) {
+          return 3;
+        }
+        return 0;
+      })
+      .on('mouseenter', function(event, d) {
+        var fi = ministryFunding[d.name] || {};
+        var funding = fi.ndp || fi.ucp || fi.pc || 0;
+        var recipients = (fi.topRecipients || []).join(', ');
+
+        var html = '<div class="tt-title">' + d.name + '</div>';
+        html += '<div class="tt-row"><span class="tt-label">Era:</span> <span class="tt-value">' + d.era + '</span></div>';
+        html += '<div class="tt-row"><span class="tt-label">Total grants:</span> <span class="tt-value">$' + (funding >= 1e9 ? (funding/1e9).toFixed(2) + 'B' : (funding/1e6).toFixed(0) + 'M') + '</span></div>';
+        if (recipients) html += '<div class="tt-row"><span class="tt-label">Top 3:</span> <span class="tt-value">' + recipients + '</span></div>';
+        tooltip.innerHTML = html;
+        tooltip.classList.add('visible');
+      })
+      .on('mousemove', function(event) {
+        tooltip.style.left = (event.clientX + 14) + 'px';
+        tooltip.style.top = (event.clientY - 10) + 'px';
+      })
+      .on('mouseleave', function() {
+        tooltip.classList.remove('visible');
+      });
+
+    // Node labels
+    nodeSel.append('text')
+      .attr('x', function(d) { return d.era === 'UCP' ? d.x1 + 8 : (d.era === 'PC' ? d.x0 - 8 : d.x0 + (d.x1 - d.x0) / 2); })
+      .attr('y', function(d) { return (d.y0 + d.y1) / 2; })
+      .attr('dy', '0.35em')
+      .attr('text-anchor', function(d) { return d.era === 'UCP' ? 'start' : (d.era === 'PC' ? 'end' : 'middle'); })
+      .attr('font-size', '10px')
+      .attr('font-weight', '600')
+      .attr('fill', function(d) {
+        if (d.era === 'NDP') return '#fff';
+        return 'var(--text-primary)';
+      })
+      .each(function(d) {
+        var label = d.name.replace(' (UCP)', '');
+        if (label.length > 32) label = label.substring(0, 30) + '...';
+        // Position text outside for PC and UCP, inside for NDP (if tall enough)
+        if (d.era === 'NDP' && (d.y1 - d.y0) < 14) {
+          d3.select(this)
+            .attr('x', d.x1 + 8)
+            .attr('text-anchor', 'start')
+            .attr('fill', 'var(--text-primary)');
+        }
+        d3.select(this).text(label);
+      });
+  }
+
+  // ===== RENDER EVENT TABLE =====
+  function renderEventTable(filterType) {
+    var tbody = document.getElementById('eventTableBody');
+    tbody.innerHTML = '';
+    var filtered = filterType === 'all'
+      ? transformEvents
+      : transformEvents.filter(function(e) { return e.type === filterType; });
+
+    filtered.forEach(function(ev) {
+      var badgeClass = ev.type.toLowerCase();
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td style="font-weight:700;color:var(--navy);">' + ev.id + '</td>' +
+        '<td><span class="event-badge ' + badgeClass + '">' + ev.type + '</span></td>' +
+        '<td>' + ev.source + '</td>' +
+        '<td>' + ev.target + '</td>' +
+        '<td>' + ev.date + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ===== POPULATE HIGHLIGHT DROPDOWN =====
+  var highlightSelect = document.getElementById('highlightMinistry');
+  var allMinistries = [];
+  transformEvents.forEach(function(ev) {
+    if (allMinistries.indexOf(ev.target) === -1) allMinistries.push(ev.target);
+  });
+  allMinistries.sort();
+  allMinistries.forEach(function(m) {
+    var opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    highlightSelect.appendChild(opt);
+  });
+
+  // ===== INITIAL RENDER =====
+  renderSankey('all', 'none');
+  renderEventTable('all');
+
+  // ===== FILTER EVENT HANDLERS =====
+  document.getElementById('eventTypeFilter').addEventListener('change', function() {
+    renderSankey(this.value, highlightSelect.value);
+    renderEventTable(this.value);
+  });
+
+  highlightSelect.addEventListener('change', function() {
+    renderSankey(document.getElementById('eventTypeFilter').value, this.value);
+  });
+
+})();
+</script>
+
+</body>
+</html>

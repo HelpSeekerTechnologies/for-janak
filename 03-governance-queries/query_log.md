@@ -1,4 +1,4 @@
-# Smoking Gun Query Log — Agent 2
+# Governance Analysis Query Log — Agent 2
 
 **Generated:** 2026-02-12 22:41:46
 

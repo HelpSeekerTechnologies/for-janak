@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Agent 2 — Smoking Gun Queries
+Agent 2 — Governance Analysis Queries
 Operation Lineage Audit — Phase 2
 
 Executes 3 core Cypher queries + UCP symmetry test against the Neo4j graph.
@@ -27,7 +27,7 @@ NEO4J_URI      = "<YOUR_NEO4J_AURA_URI>"
 NEO4J_USER     = "neo4j"
 NEO4J_PASSWORD = "<YOUR_NEO4J_AURA_PASSWORD>"
 
-OUTPUT_DIR = r"C:\Users\alina\OneDrive\Desktop\lineage-audit\03-smoking-gun-queries"
+OUTPUT_DIR = r"C:\Users\alina\OneDrive\Desktop\lineage-audit\03-governance-queries"
 LOG_LINES = []
 LOG_PATH = os.path.join(OUTPUT_DIR, "query_log.md")
 
@@ -39,7 +39,7 @@ def log(msg):
 
 def flush_log():
     with open(LOG_PATH, 'w', encoding='utf-8') as f:
-        f.write("# Smoking Gun Query Log — Agent 2\n\n")
+        f.write("# Governance Analysis Query Log — Agent 2\n\n")
         f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
         f.write("```\n")
         for line in LOG_LINES:
@@ -59,7 +59,7 @@ def write_csv(filename, rows, fieldnames):
 def main():
     t_start = time.time()
     log("=" * 72)
-    log("AGENT 2 — SMOKING GUN QUERIES — START")
+    log("AGENT 2 — GOVERNANCE ANALYSIS QUERIES — START")
     log("=" * 72)
 
     driver = GraphDatabase.driver(NEO4J_URI, auth=(NEO4J_USER, NEO4J_PASSWORD))

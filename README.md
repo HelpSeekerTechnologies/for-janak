@@ -44,13 +44,13 @@ lineage-audit/
 │   │   └── queries/                    # Analytical queries
 │   └── python/                         # Ingestion scripts
 │
-├── 03-smoking-gun-queries/
+├── 03-governance-queries/
 │   ├── graph-analysis.skill.md         # Multi-hop Cypher queries
 │   └── (query result CSVs — gitignored)
 │
 ├── 04-synthesis/
 │   ├── analysis-synthesis.skill.md     # "So What" chain methodology
-│   └── smoking-gun-synthesis.md        # Executive narrative (generated)
+│   └── governance-synthesis.md         # Executive narrative (generated)
 │
 ├── 05-html-artifacts/
 │   ├── visualization.skill.md          # HTML dashboard generation
@@ -68,7 +68,7 @@ lineage-audit/
 
 ```
 PHASE 0              PHASE 1             PHASE 2              PHASE 3             PHASE 4
-Data Assembly    →   Graph Build     →   Smoking Gun     →    Synthesis     →    Validation
+Data Assembly    →   Graph Build     →   Governance      →    Synthesis     →    Validation
 (4 agents)           (2 agents)          Queries              & HTML              & Stress Test
                                          (3 agents)           (3 agents)          (2 agents)
 ```

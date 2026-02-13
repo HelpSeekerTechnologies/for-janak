@@ -34,7 +34,7 @@ Each decision follows: **Context → Decision → Rationale → Alternatives Con
 **Date:** 2026-02-12
 **Context:** Raw grants data has 1.8M rows (individual payments). Loading all as graph edges would create an unwieldy graph.
 **Decision:** Aggregate to `(Organization, Ministry, FiscalYear)` tuples. Each tuple becomes one `RECEIVED_GRANT` relationship with `amount` (sum), `n_payments` (count), `political_era` (derived).
-**Rationale:** The smoking gun question operates at org×ministry×era granularity, not individual payment level. Aggregation reduces edges from ~1.8M to ~50-100K while preserving all analytical power.
+**Rationale:** The core governance question operates at org×ministry×era granularity, not individual payment level. Aggregation reduces edges from ~1.8M to ~50-100K while preserving all analytical power.
 **Alternatives:** (a) Individual payment edges — rejected for performance. (b) Aggregate at org×era only (lose ministry dimension) — rejected because ministry lineage traversal requires the ministry node.
 
 ---
@@ -102,8 +102,8 @@ Each decision follows: **Context → Decision → Rationale → Alternatives Con
 ### D010: Drop Elections Alberta, reframe without political donations
 
 **Date:** 2026-02-12
-**Context:** The original workplan included Agent 0C (Elections Alberta Donation Collector) to scrape political donation data and link directors to NDP donations. However, no Elections Alberta data is available (no bulk CSV download, scraping unreliable), and the smoking gun question depended on director-to-donation links.
-**Decision:** Remove Agent 0C entirely. Remove all `PoliticalParty` nodes, `Donation` nodes, and `DONATED_TO` relationships from the graph schema. Reframe the smoking gun question from "directors who donated to NDP" to "governance clusters receiving disproportionate funding through NDP-restructured ministries vs non-clustered organizations." Reframe Agent 2B from "Director-to-Donation Graph Walker" to "Director-Cluster-Funding-Concentration Analyzer."
+**Context:** The original workplan included Agent 0C (Elections Alberta Donation Collector) to scrape political donation data and link directors to NDP donations. However, no Elections Alberta data is available (no bulk CSV download, scraping unreliable), and the core governance question depended on director-to-donation links.
+**Decision:** Remove Agent 0C entirely. Remove all `PoliticalParty` nodes, `Donation` nodes, and `DONATED_TO` relationships from the graph schema. Reframe the core governance question from "directors who donated to NDP" to "governance clusters receiving disproportionate funding through NDP-restructured ministries vs non-clustered organizations." Reframe Agent 2B from "Director-to-Donation Graph Walker" to "Director-Cluster-Funding-Concentration Analyzer."
 **Rationale:** The funding pattern through ministry lineage + governance clusters is already powerful without donations. The reframed question is STILL graph-only (requires ministry lineage traversal + director network cluster detection + temporal funding comparison) and avoids the weakest data link. Per D006, donations were always the weakest link.
 **Alternatives:** (a) Keep Agent 0C and manually collect donations — rejected because data is unavailable. (b) Use federal Elections Canada data instead — rejected because provincial donations are more relevant and the reframed question is stronger without donations.
 

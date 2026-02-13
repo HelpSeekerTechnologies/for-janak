@@ -11,7 +11,7 @@ Transform raw graph query results into decision-ready insights using the "So Wha
 - Turning Cypher query CSVs into executive narratives
 - Building the "So What" chain for each finding
 - Framing results for political audience (Danielle Smith / UCP perspective)
-- Generating the smoking-gun-synthesis.md deliverable
+- Generating the governance-synthesis.md deliverable
 
 ---
 
@@ -50,10 +50,10 @@ DECISION:    Consolidated audit of cluster-level funding through ministry lineag
 
 ---
 
-## Output Template: smoking-gun-synthesis.md
+## Output Template: governance-synthesis.md
 
 ```markdown
-# Smoking Gun Synthesis — Operation Lineage Audit
+# Governance Analysis Synthesis — Operation Lineage Audit
 
 ## Executive Summary (1 paragraph, 3 numbers max)
 {The single most important finding in 2-3 sentences}
