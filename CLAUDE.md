@@ -1,4 +1,4 @@
-# Operation Lineage Audit — Claude Code Context
+# Operation Lineage Audit — Project Context
 
 ## Project Overview
 

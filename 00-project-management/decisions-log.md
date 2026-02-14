@@ -82,10 +82,10 @@ Each decision follows: **Context → Decision → Rationale → Alternatives Con
 ### D008: Each folder gets a skill.md for session persistence
 
 **Date:** 2026-02-12
-**Context:** Claude Code sessions compress context over time. Need to preserve methodology in files that can be re-read.
-**Decision:** Every folder gets a `{domain}.skill.md` that encodes the methodology, inputs, outputs, and anti-patterns for that phase. These serve as both documentation AND Claude Code skill files that can be loaded in future sessions.
-**Rationale:** After context compression, Claude can `Read` the relevant skill.md to recover full context for that phase. This is the KGL-skill pattern applied to the project itself.
-**Alternatives:** (a) Single monolithic CLAUDE.md — too large after expansion. (b) No skills — lose context on compression.
+**Context:** Long-running analysis sessions lose context over time. Need to preserve methodology in files that can be re-read.
+**Decision:** Every folder gets a `{domain}.skill.md` that encodes the methodology, inputs, outputs, and anti-patterns for that phase. These serve as both documentation AND reusable methodology files.
+**Rationale:** On session recovery, the relevant skill.md provides full context for that phase. This is the KGL-skill pattern applied to the project itself.
+**Alternatives:** (a) Single monolithic CLAUDE.md — too large after expansion. (b) No skills — lose context on restart.
 
 ---
 

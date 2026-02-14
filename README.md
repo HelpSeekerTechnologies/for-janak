@@ -24,7 +24,7 @@ To answer a question that **only a graph can answer:**
 
 ```
 lineage-audit/
-├── CLAUDE.md                           # Claude Code context (read first after compression)
+├── CLAUDE.md                           # Project context (read first)
 ├── README.md                           # This file
 ├── .gitignore
 │
@@ -99,7 +99,7 @@ docker run -d --name lineage-audit \
   -e NEO4J_AUTH=neo4j/<YOUR_NEO4J_LOCAL_PASSWORD> \
   neo4j:5-community
 
-# 3. Read CLAUDE.md for full context
+# 3. Read CLAUDE.md for project context
 # 4. Follow WORKPLAN.md phases sequentially
 ```
 
@@ -109,4 +109,4 @@ docker run -d --name lineage-audit \
 
 ---
 
-*Built with Claude Code + KGL v1.3 ontology*
+*Built with KGL v1.3 ontology*

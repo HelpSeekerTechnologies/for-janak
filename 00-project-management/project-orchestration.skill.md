@@ -6,7 +6,7 @@ Coordinate multi-agent graph analysis pipeline for Alberta ministry lineage audi
 
 ## When to Use
 
-- Starting a new session after context compression — read this + CLAUDE.md + WORKPLAN.md first
+- Starting a new session — read this + CLAUDE.md + WORKPLAN.md first
 - Launching parallel agents for a phase
 - Checking phase completion status
 - Resolving blocked agents or failed data pulls
@@ -16,7 +16,7 @@ Coordinate multi-agent graph analysis pipeline for Alberta ministry lineage audi
 ## Session Recovery Protocol
 
 After context compression, run this sequence:
-1. `Read CLAUDE.md` — recover project context, architecture, data sources
+1. `Read CLAUDE.md` — project context, architecture, data sources
 2. `Read 00-project-management/WORKPLAN.md` — check phase statuses
 3. `Read 00-project-management/decisions-log.md` — recover design decisions
 4. `Read {current-phase-folder}/skill.md` — recover methodology for active phase
