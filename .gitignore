@@ -5,6 +5,9 @@
 !package.json
 *.parquet
 
+# EXCEPT: CRA 2024 data for sharing
+!data/**/*.csv
+
 # Neo4j data
 neo4j-data/
 

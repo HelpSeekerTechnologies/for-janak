@@ -1,0 +1,29 @@
+Form ID,Form Revision Number,English Description,French Description
+23,19 B,"In order to accommodate previous versions of the T3010, the number of columns will not decrease in the files even when the data has not been collected in that particular version. In these cases, the system will produce a blank field value for that T3010 record.
+ 
+T3010, version 23 – From May 13 to October 20, 2019. 
+T3010, version 23 can still be entered into the system when: 
+it has been submitted on paper
+an adjustment to the old version is being processed, or
+an existing version 23 is being processed at the time of the fall 2019 release (October 21, 2019).","Afin de tenir compte des versions précédentes du T3010, le nombre de colonnes ne diminuera pas dans les fichiers même si les données n'ont pas été collectées dans cette version particulière. Dans de tels cas, le système générera une valeur de champ vide pour le T3010 en question.
+ 
+T3010, version 23 - du 13 mai au 20 octobre 2019
+La version 23 du formulaire T3010 peut toujours être entrée dans le système dans l’une ou l’autre des conditions suivantes : 
+le formulaire a été soumis sur papier;
+une modification apportée à l'ancienne version est en cours de traitement;
+une version 23 existante est en cours de traitement au moment du lancement de la version de l'automne 2019 (21 octobre 2019)."
+24,19 C,"T3010, version 24 – From October 21, 2019 to May 10, 2020. 
+Schedule 7: Political Activities – Description has been renamed Schedule 7: Description. Schedule 7 Political Activities - Funding and Schedule 7 Political Activities - Resources have been removed from the form. When version 24 of the form is used, these tables will not be populated, they will be blank.","T3010, version 24 - du 21 octobre 2019 au 10 mai 2020
+La section intitulée « Annexe 7, Activités politiques – Description » a été renommée « Annexe 7, Description ». Les sections « Annexe 7, Activités politiques – Financement » et « Annexe 7, Activités politiques – Ressources » ont été supprimées du formulaire. Lorsque la version 24 du formulaire est utilisée, ces tableaux ne seront pas remplis, ils seront vides."
+25,20 A,"T3010, version 25 – From May 11, 2020 to May 12, 2023.
+Schedule 7: Description has been removed from the form. When version 25 of the form is used, this table will not be populated, it will be blank.
+Financial Section A, B and C: 2400 has been removed from the form. When version 25 of the form is used, this field will not be populated, it will be blank. ","T3010, version 25 – du 11 mai 2020 au 12 mai 2023
+Annexe 7 : Description a été supprimée du formulaire. Lorsque la version 25 du formulaire est utilisée, ce champ ne sera pas rempli, il sera vide.
+Renseignement généraux A, B and C: 2400 a été supprimée du formulaire. Lorsque la version 25 du formulaire est utilisée, ce champ ne sera pas rempli, il sera vide."
+26,23 A,"T3010, version 26 – May 13, 2023 to present.
+Financial Section A, B and C : 5840, 5841, 5842, and 5843 have been added to the form. When an earlier version (23, 24, or 25) of the form is used, these fields  will not be populated, they will be blank.
+Financial Section D & Schedule6: 5045 has been added to the form. When an earlier version (23, 24, or 25) of the form is used, these fields  will not be populated, they will be blank. 
+Grants to Non-Qualified Donees: A new table has been added to the form to capture the T1441 data. When an earlier version (23, 24, or 25) of the form is used, these fields  will not be populated, they will be blank.","T3010, version 26 – du 13 mai 2023 à aujourd’hui
+Renseignement généraux A, B and C: 5840, 5841, 5842 et 5843 ont été ajoutés au formulaire. Lorsqu’une version ultérieure est utilisée (23, 24 ou 25) ce champ ne sera pas rempli, il sera vide.
+Renseignements financiers, Section D et Annexe 6 : 5046 a été ajoutés au formulaire. Lorsqu’une version ultérieure est utilisée (23, 24 ou 25) ce champ ne sera pas rempli, il sera vide.
+Subventions à des donataires non reconnus: Un nouveau tableau a été ajouté au formulaire pour saisir les données du T1441. Lorsqu’une version ultérieure est utilisée (23, 24 ou 25) ce champ ne sera pas rempli, il sera vide."
